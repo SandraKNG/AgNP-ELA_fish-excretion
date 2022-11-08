@@ -1,4 +1,5 @@
-  # NAME of paper
+  # *** Silver nanoparticles addition promotes phosphorus and silver excretion by 
+  # yellow perch (Perca flavescens) in a boreal lake ***
   # this code was developped by S. Klemet-N'Guessan in 2020 and 2021
 
   # load libraries and read silver nanoparticles (NP) dataset ----
@@ -18,13 +19,13 @@
   library(cowplot) # to align multiple plots
   library(datawizard) # to do summary statistics
 
-  NPer <- read.csv('20 04 21 AgNP ELA lakes fish excretion.csv',
+  NPer <- read.csv('data/2020-04-21_AgNP-ELA-lakes_fish-excretion.csv',
                    stringsAsFactors = F, na.strings = c("", "NA", "."), 
                    strip.white = TRUE, sep = ",")
-  Pmd <- read.csv('21 05 17 AgNP fish excretion model_R.csv',
-                    stringsAsFactors = F, na.strings = c("", "NA", "."), 
-                    strip.white = TRUE, sep = ",")
-  paramm <- read.csv('21 09 20 param_modelsp_FishStoich.csv',
+  # Pmd <- read.csv('21 05 17 AgNP fish excretion model_R.csv',
+  #                   stringsAsFactors = F, na.strings = c("", "NA", "."), 
+  #                   strip.white = TRUE, sep = ",")
+  paramm <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
                      stringsAsFactors = F, na.strings = c("", "NA", "."), 
                      strip.white = TRUE, sep = ",")
   
@@ -384,7 +385,7 @@
   
   # testing linear model with log-transformed data on raw column 
   # so that can revert back to response when doing emmeans
-  lm.Nxnorm <- lm(log(massnorm.N.excr) ~ Lake*Year, 
+  lm.Nxnorm <- lm(log(N.excretion) ~ log(Mass)+Lake*Year, 
      data = NPexcr %>% filter(Year != '2014'))
   anova(lm.Nxnorm)
   # which levels are different? Lakes from 2012 vs. 2015
@@ -475,18 +476,18 @@
   # ..P excretion anova + figure ----
   # testing linear model with log-transformed data on raw column 
   # so that can revert back to response when doing emmeans
-  lm.Pxnorm <- lm(log(massnorm.P.excr) ~ Lake*Year, 
+  lm.Pxnorm <- lm(log(P.excretion) ~ log(Mass)+Lake*Year, 
                   data = NPexcr)
   Anova(lm.Pxnorm)
   # which levels are different? Lakes from 2014 vs. 2015
   TukeyHSD(aov(lm.Pxnorm), ordered = F)
   
   # emmeans
-  lm.Pxnorm_emmeans <- emmeans(lm.Pxnorm, ~ Lake|Year, type = 'response')
+  lm.Pxnorm_emmeans <- emmeans(lm.Pxnorm, ~ Lake:Year, type = 'response')
   pairs(lm.Pxnorm_emmeans)
   emmip(lm.Pxnorm, Lake ~ Year)
   lm.Pxnorm_emmeans
-   plot(lm.Pxnorm_emmeans, comparison = T)
+  plot(lm.Pxnorm_emmeans, comparison = T)
   
   # extracting effects
   lm.Pxnorm_emmeansdf <- as.data.frame(summary(lm.Pxnorm_emmeans))
