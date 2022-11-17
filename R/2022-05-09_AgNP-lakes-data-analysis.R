@@ -111,6 +111,7 @@
      data = NPexcr %>% filter(Lake == '239'))$coefficients["Log10.mass"]
   # b coeff = 0.58
   lm(Log10.N.excretion ~ Log10.mass, data = NPexcr) # b coeff = 0.40
+  lm(Log10.P.excretion ~ Log10.mass, data = NPexcr)
   
   # visualize Log10 P excretion vs. Log10 mass by Lake
   ggplot(NPexcr, aes(x = Log10.mass, y = Log10.P.excretion)) +
@@ -652,6 +653,8 @@
   t.test(Log10.massnorm.Tag.excr ~ Year, NPexcr, var.equal = F)
   w.Tag <- wilcox.test(massnorm.Tag.excr ~ Year, NPexcr)
   w.Tag
+  aov.ag <- lm(log(Tag.excretion) ~ log(Mass)*Year, NPexcr)
+  Anova(aov.ag)
   
   # N:Ag
   hist(NPexcr$massnorm.NAg.excr)
@@ -668,7 +671,7 @@
   # ...TAg 
   windows(width = 14, height = 7)
   TAgexcrp <- ggplot(NPexcr %>% filter(Year != 2012), 
-         aes(x = Year, y = massnorm.Tag.excr)) +
+         aes(x = Year, y = log(Tag.excretion))) +
     geom_boxplot(outlier.shape = NA, size = 0.5) +
     geom_jitter(size = 1.5, position = position_jitter(0.2),alpha = 0.5) +
     stat_compare_means(label.x = 0.9, label = 'p.format', size = 3) +
