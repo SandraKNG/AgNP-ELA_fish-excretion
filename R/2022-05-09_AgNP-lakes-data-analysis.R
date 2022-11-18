@@ -28,6 +28,9 @@
   paramm <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
                      stringsAsFactors = F, na.strings = c("", "NA", "."), 
                      strip.white = TRUE, sep = ",")
+  YP <- read.csv('data/2022-07-11_11-DOC-lakes_Mastersheet.csv',
+                   stringsAsFactors = F, na.strings = c("", "NA", "."), 
+                   strip.white = TRUE, sep = ",")
   
   str(paramm)
   
@@ -78,6 +81,17 @@
   
   parammod <- paramm %>% rename(ac_m = ï..ac_m)
   str(parammod)
+  
+  YP22 <- YP %>% 
+    rename(P.excretion = P.excretion.rate..ug.h.ind.,
+           N.excretion = N.excretion.rate..ug.h.ind.,
+           Mass = Dry.mass..g.) %>% 
+    mutate(Log10.mass = log10(Mass),
+           Log10.N.excretion = log10(N.excretion),
+           Log10.P.excretion = log10(P.excretion),
+           Site.name = ifelse(Site.name == 'L222', '222',
+                              ifelse(Site.name == 'L239', '239', Site.name)),
+           Year = '2022') 
   
 
   ############################### TEST #######################################
@@ -218,7 +232,8 @@
               massnorm.P.excr.sd = sd(massnorm.P.excr, na.rm = TRUE))
   
   NPexcr.ss1 <- NPexcr %>% group_by(Lake, Year) %>%
-    select(c('Fork.length', 'Mass', 'massnorm.N.excr', 'massnorm.P.excr')) %>% 
+    select(c('Fork.length', 'Mass', 'massnorm.N.excr', 'massnorm.P.excr',
+             'Temperature')) %>% 
     describe_distribution() 
   
   NPexcr.ss2 <- NPexcr %>% group_by(Lake, Year) %>%
@@ -380,6 +395,96 @@
   
   ggsave('final figures/Fig S1.tiff', 
          width = 7, height = 3.5, 
+         units = 'in', dpi = 600)
+  
+  # Excretion vs mass ----
+  # YP in 222
+  # N excretion
+  Nexcr.m.p <- ggplot(YP22,aes(x = Log10.mass, y = Log10.N.excretion)) +
+    geom_point(size = 1.5, aes(color = Site.name, shape = Year), 
+               YP22 %>%  filter(Species.code == 'YP',
+                                Site.name == '222')) +
+    geom_point(size = 1.5,aes(color = Site.name, shape = Year), 
+               YP22 %>%  filter(Species.code == 'YP',
+                                Site.name == '239')) +
+    geom_smooth(aes(color = Site.name, fill = Site.name),
+                YP22 %>%  filter(Species.code == 'YP',
+                                 Site.name == '222'),
+                method = 'lm', alpha = .2) +
+    geom_smooth(aes(color = Site.name, fill = Site.name),
+                YP22 %>%  filter(Species.code == 'YP',
+                                 Site.name == '239'),
+                method = 'lm', alpha = .2) +
+    geom_point(size = 1.5, aes(x = Log10.mass, y = Log10.N.excretion,
+                   color = Lake, shape = Year), 
+               data = NPexcr %>% filter(Lake == '222')) +
+    geom_point(size = 1.5, aes(x = Log10.mass, y = Log10.N.excretion,
+                   color = Lake, shape = Year), 
+               data = NPexcr %>% filter(Lake == '239',
+                                        Year != '2014')) +
+    labs(x = 'Log10 dry mass (g)',
+         y = 'Log10 N excretion (μg N/ind/h)') +
+    scale_colour_manual(name = 'Lake',
+                        labels = c('AgNPs L222', 'Reference L239'),
+                        values = c("black","gray60")) +
+    scale_fill_manual(name = 'Lake',
+                        labels = c('AgNPs L222', 'Reference L239'),
+                        values = c("black","gray60")) +
+    theme_classic(base_size = 10) +
+    theme(text = element_text(family = "Arial"),
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          legend.margin = margin(.15, .15, .15, .15, 'cm'),
+          legend.key.height = unit(1, 'lines'), 
+          legend.key.width = unit(2, 'lines'),
+          legend.position = 'right') 
+  Nexcr.m.p
+  
+  # P excretion
+  Pexcr.m.p <- ggplot(YP22,aes(x = Log10.mass, y = Log10.P.excretion)) +
+    geom_point(size = 1.5, aes(color = Site.name, shape = Year), 
+               YP22 %>%  filter(Species.code == 'YP',
+                                Site.name == '222')) +
+    geom_point(size = 1.5,aes(color = Site.name, shape = Year), 
+               YP22 %>%  filter(Species.code == 'YP',
+                                Site.name == '239')) +
+    geom_smooth(aes(color = Site.name, fill = Site.name),
+                YP22 %>%  filter(Species.code == 'YP',
+                                 Site.name == '222'),
+                method = 'lm', alpha = .2) +
+    geom_smooth(aes(color = Site.name, fill = Site.name),
+                YP22 %>%  filter(Species.code == 'YP',
+                                 Site.name == '239'),
+                method = 'lm', alpha = .2) +
+    geom_point(size = 1.5, aes(x = Log10.mass, y = Log10.P.excretion,
+                               color = Lake, shape = Year), 
+               data = NPexcr %>% filter(Lake == '222')) +
+    geom_point(size = 1.5, aes(x = Log10.mass, y = Log10.P.excretion,
+                               color = Lake, shape = Year), 
+               data = NPexcr %>% filter(Lake == '239')) +
+    labs(x = 'Log10 dry mass (g)',
+         y = 'Log10 P excretion (μg P/ind/h)') +
+    scale_colour_manual(name = 'Lake',
+                        labels = c('AgNPs L222', 'Reference L239'),
+                        values = c("black","gray60")) +
+    scale_fill_manual(name = 'Lake',
+                      labels = c('AgNPs L222', 'Reference L239'),
+                      values = c("black","gray60")) +
+    theme_classic(base_size = 10) +
+    theme(text = element_text(family = "Arial"),
+          legend.margin = margin(.15, .15, .15, .15, 'cm'),
+          legend.key.height = unit(1, 'lines'), 
+          legend.key.width = unit(2, 'lines'),
+          legend.position = 'right') 
+  Pexcr.m.p
+  
+  # combine all graphs into one ----
+  ggarrange(Nexcr.m.p, Pexcr.m.p, nrow = 2, 
+            labels = c("(a)", "(b)"),
+            font.label = list(size = 10), label.x = 0.12, label.y = 1,
+            legend = 'right', common.legend = T, align = 'v')
+  ggsave('figures/final-figures/FigS4.png', 
+         width = 6, height = 5, 
          units = 'in', dpi = 600)
   
   # Figure 1 ----
