@@ -22,12 +22,12 @@
   NPer <- read.csv('data/2020-04-21_AgNP-ELA-lakes_fish-excretion.csv',
                    stringsAsFactors = F, na.strings = c("", "NA", "."), 
                    strip.white = TRUE, sep = ",")
-  # Pmd <- read.csv('21 05 17 AgNP fish excretion model_R.csv',
-  #                   stringsAsFactors = F, na.strings = c("", "NA", "."), 
-  #                   strip.white = TRUE, sep = ",")
   paramm <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
                      stringsAsFactors = F, na.strings = c("", "NA", "."), 
                      strip.white = TRUE, sep = ",")
+  VMmd <- read.csv('data/2022-11-18_AgNPs-fish-excretion-VanniMcIntyre-model.csv',
+                    stringsAsFactors = F, na.strings = c("", "NA", "."),
+                    strip.white = TRUE, sep = ",")
   YP <- read.csv('data/2022-07-11_11-DOC-lakes_Mastersheet.csv',
                    stringsAsFactors = F, na.strings = c("", "NA", "."), 
                    strip.white = TRUE, sep = ",")
@@ -70,14 +70,16 @@
   str(NPexcr)
   
   
-  str(Pmd)
-  Pmod <- Pmd %>% rename(Ingestion.rate = ï..Ingestion.rate,
-                         ModP.excretion = Modelled.P.excretion.rate,
-                         MeasP.excretion = Measured.P.excretion) %>% 
-    mutate(FoodCP = as.factor(Food.C.P),
-           Year = as.factor(Year),
-           Lake = as.factor(Lake))
-  str(Pmod)
+  str(VMmd)
+  VMmod <- VMmd %>% rename(N.excretion = N.excretion..Î.g.N.ind.h.,
+                         SE.N.excretion = SE.N.excretion..Î.g.N.ind.h.,
+                         P.excretion = P.excretion..Î.g.P.ind.h.,
+                         SE.P.excretion = SE.P.excretion..Î.g.P.ind.h.,
+                         Year = ï..Year) %>% 
+    filter(!is.na(P.excretion)) %>% 
+    mutate(Lake = factor(Lake),
+           Year = factor(Year))
+  str(VMmod)
   
   parammod <- paramm %>% rename(ac_m = ï..ac_m)
   str(parammod)
@@ -397,7 +399,7 @@
          width = 7, height = 3.5, 
          units = 'in', dpi = 600)
   
-  # Excretion vs mass ----
+  # Figure S4 ----
   # YP in 222
   # N excretion
   Nexcr.m.p <- ggplot(YP22,aes(x = Log10.mass, y = Log10.N.excretion)) +
@@ -1123,7 +1125,29 @@
          width = 7, height = 4, 
          units = 'in', dpi = 600)
   
-  
+  # Figure S5 ----
+  Nexcr_mod2.p <- ggplot(VMmod, 
+                    aes(x = Mass, y = N.excretion, color = Lake,
+                        shape = Year)) +
+    geom_point(size = 1.5, position = position_dodge(0.5)) +
+    geom_errorbar(aes(ymax = N.excretion + SE.N.excretion, 
+                      ymin = N.excretion - SE.N.excretion), 
+                  width = 0.2, lwd = 0.5, position = position_dodge(0.5)) +
+    # geom_point(aes(x = Mass, y = N.excretion, color = Lake, shape = Year), 
+    #            data = NPexcr %>%  filter(Year != '2014'),
+    #            size = 1.5) +
+    # scale_x_discrete(labels = c('Pre-addition',  'Year 2')) +
+    theme_classic(base_size = 10) +
+    theme(text = element_text(family = "Arial"),
+          axis.title.x = element_blank(),
+          legend.margin = margin(.15, .15, .15, .15, 'cm'),
+          legend.key.height = unit(1, 'lines'), 
+          legend.key.width = unit(2, 'lines'),
+          legend.position = 'top') +
+    scale_colour_manual(name = 'Lake',
+                        labels = c('AgNPs L222', 'Reference L239'),
+                        values = c("black","gray60"))
+  Nexcr_mod2.p
   
   sessionInfo() 
   #################################### END OF CODE ##################################
