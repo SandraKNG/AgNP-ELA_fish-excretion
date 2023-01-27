@@ -22,15 +22,12 @@
   NPer <- read.csv('data/2020-04-21_AgNP-ELA-lakes_fish-excretion.csv',
                    stringsAsFactors = F, na.strings = c("", "NA", "."), 
                    strip.white = TRUE, sep = ",")
+  # Pmd <- read.csv('21 05 17 AgNP fish excretion model_R.csv',
+  #                   stringsAsFactors = F, na.strings = c("", "NA", "."), 
+  #                   strip.white = TRUE, sep = ",")
   paramm <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
                      stringsAsFactors = F, na.strings = c("", "NA", "."), 
                      strip.white = TRUE, sep = ",")
-  VMmd <- read.csv('data/2022-11-18_AgNPs-fish-excretion-VanniMcIntyre-model.csv',
-                    stringsAsFactors = F, na.strings = c("", "NA", "."),
-                    strip.white = TRUE, sep = ",")
-  YP <- read.csv('data/2022-07-11_11-DOC-lakes_Mastersheet.csv',
-                   stringsAsFactors = F, na.strings = c("", "NA", "."), 
-                   strip.white = TRUE, sep = ",")
   
   str(paramm)
   
@@ -40,17 +37,16 @@
   # clean, rename, and add variables to the dataset ----
   NPexcr <- NPer %>% 
     rename(Year = Sampling.year,
-           N.excretion = N.excretion.rate..Âµg.ind.h.,
-           P.excretion = P.excretion.rate..Âµg.ind.h.,
+           N.excretion = N.excretion.rate..µg.ind.h.,
+           P.excretion = P.excretion.rate..µg.ind.h.,
            C.excretion = C.excretion..mg.C.ind.h.,
-           Tag.excretion = Tag.excretion.rate..Âµg.ind.h.,
+           Tag.excretion = Tag.excretion.rate..µg.ind.h.,
            Excreted.CN = Excreted.C.N..molar.,
            Excreted.NP = Excreted.N.P..molar.,
            Excreted.CP = Excreted.C.P..molar.,
            Mass = Dry.mass..g.,
-           Fork.length = Fork.length..mm.,
-           Temperature = Temperature.Â.,
-           FishID = ï..Fish.ID) %>% 
+           Temperature = Temperature..,
+           FishID = Fish.ID) %>% 
     mutate(Log.mass = log(Mass),
            Log10.mass = log10(Mass),
            Log.N.excretion = log(N.excretion),
@@ -59,41 +55,27 @@
            Log10.N.excretion = log10(N.excretion),
            Log10.P.excretion = log10(P.excretion),
            Log10.C.excretion = log10(C.excretion),
-           NP.excretion = (N.excretion/P.excretion)/(14/31),
            P.excretion.d = (P.excretion*24)/10^6, # P excretion rate from ug/h to g/d
            N.excretion.d = (N.excretion*24)/10^6,
            Total.length.cm = Total.length..mm./10,
            Lake = as.factor(Lake),
            Year = as.factor(Year)) %>% 
-    filter(Mass != c(3.75, 2.25))
+    filter(Mass!= c(3.75, 2.25))
   
   str(NPexcr)
   
   
-  str(VMmd)
-  VMmod <- VMmd %>% rename(N.excretion = N.excretion..Î.g.N.ind.h.,
-                         SE.N.excretion = SE.N.excretion..Î.g.N.ind.h.,
-                         P.excretion = P.excretion..Î.g.P.ind.h.,
-                         SE.P.excretion = SE.P.excretion..Î.g.P.ind.h.,
-                         Year = ï..Year) %>% 
-    filter(!is.na(P.excretion)) %>% 
-    mutate(Lake = factor(Lake),
-           Year = factor(Year))
-  str(VMmod)
-  
+  # str(Pmd)
+  # Pmod <- Pmd %>% rename(Ingestion.rate = ï..Ingestion.rate,
+  #                        ModP.excretion = Modelled.P.excretion.rate,
+  #                        MeasP.excretion = Measured.P.excretion) %>% 
+  #   mutate(FoodCP = as.factor(Food.C.P),
+  #          Year = as.factor(Year),
+  #          Lake = as.factor(Lake))
+  # str(Pmod)
+  # 
   parammod <- paramm %>% rename(ac_m = ï..ac_m)
   str(parammod)
-  
-  YP22 <- YP %>% 
-    rename(P.excretion = P.excretion.rate..ug.h.ind.,
-           N.excretion = N.excretion.rate..ug.h.ind.,
-           Mass = Dry.mass..g.) %>% 
-    mutate(Log10.mass = log10(Mass),
-           Log10.N.excretion = log10(N.excretion),
-           Log10.P.excretion = log10(P.excretion),
-           Site.name = ifelse(Site.name == 'L222', '222',
-                              ifelse(Site.name == 'L239', '239', Site.name)),
-           Year = '2022') 
   
 
   ############################### TEST #######################################
@@ -127,7 +109,6 @@
      data = NPexcr %>% filter(Lake == '239'))$coefficients["Log10.mass"]
   # b coeff = 0.58
   lm(Log10.N.excretion ~ Log10.mass, data = NPexcr) # b coeff = 0.40
-  lm(Log10.P.excretion ~ Log10.mass, data = NPexcr)
   
   # visualize Log10 P excretion vs. Log10 mass by Lake
   ggplot(NPexcr, aes(x = Log10.mass, y = Log10.P.excretion)) +
@@ -225,6 +206,7 @@
     summarize(Mass.min = min(Mass, na.rm = TRUE),
               Mass.max = max(Mass, na.rm = TRUE),
               Mass.av = mean(Mass, na.rm = TRUE),
+              Mass.sd = sd(Mass, na.rm = TRUE),
               massnorm.N.excr.min = min(massnorm.N.excr, na.rm = TRUE),
               massnorm.N.excr.max = max(massnorm.N.excr, na.rm = TRUE),
               massnorm.N.excr.av = mean(massnorm.N.excr, na.rm = TRUE),
@@ -234,8 +216,7 @@
               massnorm.P.excr.sd = sd(massnorm.P.excr, na.rm = TRUE))
   
   NPexcr.ss1 <- NPexcr %>% group_by(Lake, Year) %>%
-    select(c('Fork.length', 'Mass', 'massnorm.N.excr', 'massnorm.P.excr',
-             'Temperature')) %>% 
+    select(c('Mass', 'massnorm.N.excr', 'massnorm.P.excr')) %>% 
     describe_distribution() 
   
   NPexcr.ss2 <- NPexcr %>% group_by(Lake, Year) %>%
@@ -399,107 +380,23 @@
          width = 7, height = 3.5, 
          units = 'in', dpi = 600)
   
-  # Figure S4 ----
-  # YP in 222
-  # N excretion
-  Nexcr.m.p <- ggplot(YP22,aes(x = Log10.mass, y = Log10.N.excretion)) +
-    geom_point(size = 1.5, aes(color = Site.name, shape = Year), 
-               YP22 %>%  filter(Species.code == 'YP',
-                                Site.name == '222')) +
-    geom_point(size = 1.5,aes(color = Site.name, shape = Year), 
-               YP22 %>%  filter(Species.code == 'YP',
-                                Site.name == '239')) +
-    geom_smooth(aes(color = Site.name, fill = Site.name),
-                YP22 %>%  filter(Species.code == 'YP',
-                                 Site.name == '222'),
-                method = 'lm', alpha = .2) +
-    geom_smooth(aes(color = Site.name, fill = Site.name),
-                YP22 %>%  filter(Species.code == 'YP',
-                                 Site.name == '239'),
-                method = 'lm', alpha = .2) +
-    geom_point(size = 1.5, aes(x = Log10.mass, y = Log10.N.excretion,
-                   color = Lake, shape = Year), 
-               data = NPexcr %>% filter(Lake == '222')) +
-    geom_point(size = 1.5, aes(x = Log10.mass, y = Log10.N.excretion,
-                   color = Lake, shape = Year), 
-               data = NPexcr %>% filter(Lake == '239',
-                                        Year != '2014')) +
-    labs(x = 'Log10 dry mass (g)',
-         y = 'Log10 N excretion (μg N/ind/h)') +
-    scale_colour_manual(name = 'Lake',
-                        labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("black","gray60")) +
-    scale_fill_manual(name = 'Lake',
-                        labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("black","gray60")) +
-    theme_classic(base_size = 10) +
-    theme(text = element_text(family = "Arial"),
-          axis.title.x = element_blank(),
-          axis.text.x = element_blank(),
-          legend.margin = margin(.15, .15, .15, .15, 'cm'),
-          legend.key.height = unit(1, 'lines'), 
-          legend.key.width = unit(2, 'lines'),
-          legend.position = 'right') 
-  Nexcr.m.p
-  
-  # P excretion
-  Pexcr.m.p <- ggplot(YP22,aes(x = Log10.mass, y = Log10.P.excretion)) +
-    geom_point(size = 1.5, aes(color = Site.name, shape = Year), 
-               YP22 %>%  filter(Species.code == 'YP',
-                                Site.name == '222')) +
-    geom_point(size = 1.5,aes(color = Site.name, shape = Year), 
-               YP22 %>%  filter(Species.code == 'YP',
-                                Site.name == '239')) +
-    geom_smooth(aes(color = Site.name, fill = Site.name),
-                YP22 %>%  filter(Species.code == 'YP',
-                                 Site.name == '222'),
-                method = 'lm', alpha = .2) +
-    geom_smooth(aes(color = Site.name, fill = Site.name),
-                YP22 %>%  filter(Species.code == 'YP',
-                                 Site.name == '239'),
-                method = 'lm', alpha = .2) +
-    geom_point(size = 1.5, aes(x = Log10.mass, y = Log10.P.excretion,
-                               color = Lake, shape = Year), 
-               data = NPexcr %>% filter(Lake == '222')) +
-    geom_point(size = 1.5, aes(x = Log10.mass, y = Log10.P.excretion,
-                               color = Lake, shape = Year), 
-               data = NPexcr %>% filter(Lake == '239')) +
-    labs(x = 'Log10 dry mass (g)',
-         y = 'Log10 P excretion (μg P/ind/h)') +
-    scale_colour_manual(name = 'Lake',
-                        labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("black","gray60")) +
-    scale_fill_manual(name = 'Lake',
-                      labels = c('AgNPs L222', 'Reference L239'),
-                      values = c("black","gray60")) +
-    theme_classic(base_size = 10) +
-    theme(text = element_text(family = "Arial"),
-          legend.margin = margin(.15, .15, .15, .15, 'cm'),
-          legend.key.height = unit(1, 'lines'), 
-          legend.key.width = unit(2, 'lines'),
-          legend.position = 'right') 
-  Pexcr.m.p
-  
-  # combine all graphs into one ----
-  ggarrange(Nexcr.m.p, Pexcr.m.p, nrow = 2, 
-            labels = c("(a)", "(b)"),
-            font.label = list(size = 10), label.x = 0.12, label.y = 1,
-            legend = 'right', common.legend = T, align = 'v')
-  ggsave('figures/final-figures/FigS4.png', 
-         width = 6, height = 5, 
-         units = 'in', dpi = 600)
-  
   # Figure 1 ----
   # ..N excretion anova + figure ----
   
   # testing linear model with log-transformed data on raw column 
   # so that can revert back to response when doing emmeans
-  lm.Nxnorm <- lm(log(N.excretion) ~ log(Mass)+Lake*Year, 
+  lm.Nxnorm <- lm(log(massnorm.N.excr) ~ Lake*Year, 
      data = NPexcr %>% filter(Year != '2014'))
   anova(lm.Nxnorm)
   
+  X <- aov(Lake ~ Year, data = NPexcr)
+  summary(X)
+  # ANCOVA
+  lm.Nx <- lm(log(N.excretion) ~ log(Mass)+Year*Lake, 
+                  data = NPexcr %>% filter(Year != '2014'))
+  Anova(lm.Nx, type = 'III')
   # which levels are different? Lakes from 2012 vs. 2015
-  # TukeyHSD(aov(lm.Nxnorm), ordered = F)
+  TukeyHSD(aov(lm.Nxnorm), ordered = F)
   
   # pairwise comparisons using emmeans
   lm.Nxnorm_emmeans <- emmeans(lm.Nxnorm, ~ Lake|Year, type = 'response')
@@ -516,15 +413,15 @@
                          edf = df.residual((lm.Nxnorm)))
   eff_sizeNx
   eff_sizeNxdf <- as.data.frame(summary(eff_sizeNx))
-  # eff_sizeNxdf2 <- eff_sizeNxdf %>% mutate(effect.size =
-  #                                            ifelse(effect.size < 0,
-  #                                                   effect.size*(-1), 0.8784323),
-  #                                         lower.CL =
-  #                                           ifelse(lower.CL < -0.8,
-  #                                                  -0.4318393, -0.03054899),
-  #                                         upper.CL =
-  #                                           ifelse(upper.CL < 1,
-  #                                                  0.97387891, 1.7874136))
+  eff_sizeNxdf2 <- eff_sizeNxdf %>% mutate(effect.size =
+                                             ifelse(effect.size < 0,
+                                                    effect.size*(-1), 0.8784323),
+                                          lower.CL =
+                                            ifelse(lower.CL < -0.8,
+                                                   -0.4318393, -0.03054899),
+                                          upper.CL =
+                                            ifelse(upper.CL < 1,
+                                                   0.97387891, 1.7874136))
 
   # ...data visualization 
   # .....time series 2012 to 2015 using model ----
@@ -536,13 +433,15 @@
     geom_errorbar(aes(ymax = lower.CL, ymin = upper.CL), 
                   width = 0.2, lwd = 0.5, position = position_dodge(0.5)) +
     geom_jitter(data = NPexcr %>% filter(Year != '2014'),
-                aes(x = Year, y = N.excretion),
+                aes(x = Year, y = massnorm.N.excr),
                 size = 0.5, position = position_jitterdodge(jitter.width = 0.2),
                 show.legend = FALSE, alpha = 0.5) +
     scale_x_discrete(labels = c('Pre-addition',  'Year 2')) +
     theme_classic(base_size = 10) +
     theme(text = element_text(family = "Arial"),
           axis.title.x = element_blank(),
+          # axis.text.x = element_blank(),
+          # axis.title.y = element_text(vjust = +1),
           legend.margin = margin(.15, .15, .15, .15, 'cm'),
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
@@ -550,20 +449,22 @@
     scale_colour_manual(name = 'Lake',
                       labels = c('AgNPs L222', 'Reference L239'),
                       values = c("black","gray60")) +
-    scale_y_continuous(name = 'N excretion (μg N/ind/h)') +
-    annotate("text", x = 0.87, y = 300, label = 'a', 
+    scale_y_continuous(name = 'Mass-specific \n N excretion (μg N/g/h)') +
+    # annotate("text", x = 0.5, y = 9500, label = 'A)', 
+    #          size = 9, fontface = 'bold') +
+    annotate("text", x = 0.87, y = 995, label = 'a', 
              size = 3, fontface = 'bold') +
-    annotate("text", x = 1.12, y = 300, label = 'a', 
+    annotate("text", x = 1.12, y = 1095, label = 'a', 
              size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.87, y = 1100, label = 'b', 
+    annotate("text", x = 1.87, y = 3895, label = 'b', 
              size = 3, fontface = 'bold') +
-    annotate("text", x = 2.12, y = 700, label = 'b', 
+    annotate("text", x = 2.12, y = 2695, label = 'b', 
              size = 3, fontface = 'bold', color = 'gray60')
   Nexcr.p
   
   # .....effect sizes from 2012 2015 using model ----
   windows(width = 14, height = 7)
-  eff_sizeN.p <- ggplot(eff_sizeNxdf,
+  eff_sizeN.p <- ggplot(eff_sizeNxdf2,
                         aes(x = Year, y = exp(effect.size))) +
     #geom_point(size = 1.5) +
     geom_pointrange(aes(ymax = exp(lower.CL), ymin = exp(upper.CL)),lwd = 0.4) +
@@ -582,14 +483,20 @@
   # ..P excretion anova + figure ----
   # testing linear model with log-transformed data on raw column 
   # so that can revert back to response when doing emmeans
-  lm.Pxnorm <- lm(log(P.excretion) ~ log(Mass)+Lake*Year, 
+  lm.Pxnorm <- lm(log(massnorm.P.excr) ~ Lake*Year, 
                   data = NPexcr)
   Anova(lm.Pxnorm)
+  
+  
+  # ANCOVA
+  lm.Px <- aov(log(P.excretion) ~ log(Mass)+Year*Lake, 
+              data = NPexcr)
+  Anova(lm.Px, type = 'III')
   # which levels are different? Lakes from 2014 vs. 2015
-  TukeyHSD(aov(lm.Pxnorm), ordered = F)
+  postHocs <- glht(lm.Px, linfct = mcp(Year = "Tukey"))
   
   # emmeans
-  lm.Pxnorm_emmeans <- emmeans(lm.Pxnorm, ~ Lake:Year, type = 'response')
+  lm.Pxnorm_emmeans <- emmeans(lm.Pxnorm, ~ Lake|Year, type = 'response')
   pairs(lm.Pxnorm_emmeans)
   emmip(lm.Pxnorm, Lake ~ Year)
   lm.Pxnorm_emmeans
@@ -613,7 +520,7 @@
     geom_errorbar(aes(ymax = lower.CL, ymin = upper.CL),
                   width = 0.2, lwd = 0.5, position = position_dodge(0.5)) +
     geom_jitter(data = NPexcr,
-                aes(x = Year, y = P.excretion),
+                aes(x = Year, y = massnorm.P.excr),
                 size = 0.5, position = position_jitterdodge(jitter.width = 0.2),
                 show.legend = FALSE, alpha = 0.5) +
     scale_x_discrete(labels = c('Pre-addition', 'Year 1', 'Year 2')) +
@@ -624,21 +531,21 @@
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
           legend.position = 'top') +
-    scale_y_continuous(name = 'P excretion (μg P/ind/h)') +
+    scale_y_continuous(name = 'Mass-specific \n P excretion (μg P/g/h)') +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs L222', 'Reference L239'),
                         values = c("black","gray60")) +
-    annotate("text", x = 0.87, y = 15, label = 'a', 
+    annotate("text", x = 0.87, y = 39, label = 'a', 
              size = 3, fontface = 'bold') +
-    annotate("text", x = 1.12, y = 34, label = 'b', 
+    annotate("text", x = 1.12, y = 147, label = 'b', 
              size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.87, y = 22, label = 'c', 
+    annotate("text", x = 1.87, y = 36, label = 'a', 
              size = 3, fontface = 'bold') +
-    annotate("text", x = 2.12, y = 24, label = 'c', 
+    annotate("text", x = 2.12, y = 100, label = 'b', 
              size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 2.87, y = 24, label = 'c', 
+    annotate("text", x = 2.87, y = 99, label = 'c', 
              size = 3, fontface = 'bold') +
-    annotate("text", x = 3.12, y = 22, label = 'c', 
+    annotate("text", x = 3.12, y = 123, label = 'bc', 
              size = 3, fontface = 'bold', color = 'gray60')
   Pexcr.p
   
@@ -661,7 +568,7 @@
   eff_sizeP.p
   
   #..N:P excretion (molar) ----
-  lm.NPxnorm <- lm(log(NP.excretion) ~ log(Mass)+Lake*Year, 
+  lm.NPxnorm <- lm(log(massnorm.NP.excr) ~ Lake*Year, 
                    data = NPexcr %>% filter(Year != '2014'))
   summary(lm.NPxnorm)
   Anova(lm.NPxnorm)
@@ -669,7 +576,7 @@
   TukeyHSD(aov(lm.NPxnorm), ordered = F)
   
   # emmeans
-  lm.NPxnorm_emmeans <- emmeans(lm.NPxnorm, ~ Lake|Year)
+  lm.NPxnorm_emmeans <- emmeans(lm.NPxnorm, ~ Lake:Year, type = 'response')
   lm.NPxnorm_emmeans
   pairs(lm.NPxnorm_emmeans)
   
@@ -686,46 +593,46 @@
   # .....time series 2012 to 2015 using model ----
   windows(width = 14, height = 7)
   NPexcr.p <- ggplot(lm.NPxnorm_marginal_means, 
-                    aes(x = Year, y = emmean, color = Lake,
+                    aes(x = Year, y = response, color = Lake,
                         group = Lake)) +
     geom_point(size = 1.5, position = position_dodge(0.5)) +
     geom_errorbar(aes(ymax = lower.CL, ymin = upper.CL),
                   width = 0.2, lwd = 0.5, position = position_dodge(0.5)) +
     geom_jitter(data = NPexcr %>% filter(Year != '2014'),
-                aes(x = Year, y = log(NP.excretion)),
+                aes(x = Year, y = massnorm.NP.excr),
                 size = 0.5, position = position_jitterdodge(jitter.width = 0.2),
                 show.legend = FALSE, alpha = 0.5) +
     theme_classic(base_size = 10) +
-    theme(text = element_text(family = "Arial"),
+    theme(text = element_text( family = "Arial"),
           axis.title.x = element_blank(),
           legend.margin = margin(.15, .15, .15, .15, 'cm'),
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
           legend.position = 'right') +
     scale_fill_brewer(palette = "Accent") +
-    scale_y_continuous(name = 'Log N:P excretion (molar)') +
+    scale_y_continuous(name = 'Mass-specific \n N:P excretion (molar)') +
     scale_x_discrete(labels = c('Pre-addition', 'Year 2')) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs L222', 'Reference L239'),
                         values = c("black","gray60")) +
     # annotate("text", x = 0.5, y = 450, label = 'E)', 
     #          size = 9, fontface = 'bold') +
-    annotate("text", x = 0.87, y = 3.9, label = 'a', 
+    annotate("text", x = 0.87, y = 80, label = 'a', 
              size = 3, fontface = 'bold') +
-    annotate("text", x = 1.12, y = 3, label = 'a', 
+    annotate("text", x = 1.12, y = 40, label = 'b', 
              size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.87, y = 5.5, label = 'b', 
+    annotate("text", x = 1.87, y = 160, label = 'c', 
              size = 3, fontface = 'bold') +
-    annotate("text", x = 2.12, y = 5.4, label = 'b', 
+    annotate("text", x = 2.12, y = 115, label = 'ac', 
              size = 3, fontface = 'bold', color = 'gray60') 
   NPexcr.p
   
   # .....effect sizes from 2012 2015 using model ----
   windows(width = 14, height = 7)
   eff_sizeNP.p <- ggplot(eff_sizeNPxdf,
-                         aes(x = Year, y = effect.size)) +
+                         aes(x = Year, y = exp(effect.size))) +
     geom_point(size = 1.5) +
-    geom_pointrange(aes(ymax = lower.CL, ymin = upper.CL),lwd = 0.4) +
+    geom_pointrange(aes(ymax = exp(lower.CL), ymin = exp(upper.CL)),lwd = 0.4) +
     #coord_flip() +
     theme_classic(base_size = 10) +
     theme(text = element_text( family = "Arial"),
@@ -744,9 +651,9 @@
   ggarrange(Nexcr.p, eff_sizeN.p, Pexcr.p, eff_sizeP.p, NPexcr.p, 
             eff_sizeNP.p, ncol = 2, nrow = 3, 
             labels = c("(a)", "(b)", "(c)", "(d)","(e)", "(f)"),
-            font.label = list(size = 10), label.x = 0.1, label.y = 1,
+            font.label = list(size = 10), label.x = 0.2, label.y = 1,
             legend = 'top', common.legend = T, align = 'v')
-  ggsave('figures/final-figures/Fig1_2.tiff', 
+  ggsave('figures/final-figures/Fig1.tiff', 
          width = 7, height = 7, 
          units = 'in', dpi = 600)
 
@@ -760,8 +667,6 @@
   t.test(Log10.massnorm.Tag.excr ~ Year, NPexcr, var.equal = F)
   w.Tag <- wilcox.test(massnorm.Tag.excr ~ Year, NPexcr)
   w.Tag
-  aov.ag <- lm(log(Tag.excretion) ~ log(Mass)*Year, NPexcr)
-  Anova(aov.ag)
   
   # N:Ag
   hist(NPexcr$massnorm.NAg.excr)
@@ -778,7 +683,7 @@
   # ...TAg 
   windows(width = 14, height = 7)
   TAgexcrp <- ggplot(NPexcr %>% filter(Year != 2012), 
-         aes(x = Year, y = log(Tag.excretion))) +
+         aes(x = Year, y = massnorm.Tag.excr)) +
     geom_boxplot(outlier.shape = NA, size = 0.5) +
     geom_jitter(size = 1.5, position = position_jitter(0.2),alpha = 0.5) +
     stat_compare_means(label.x = 0.9, label = 'p.format', size = 3) +
@@ -790,7 +695,7 @@
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
           legend.position = 'right') +
-    scale_y_continuous(name = 'Mass-corrected \n Ag excretion (μg Ag/g/h)') +
+    scale_y_continuous(name = 'Mass-specific \n Ag excretion (μg Ag/g/h)') +
     scale_x_discrete(labels = c('Year 1', 'Year 2')) 
   TAgexcrp
   
@@ -809,7 +714,7 @@
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
           legend.position = 'right') +
-    scale_y_continuous(name = 'Mass-corrected \n N:Ag excretion (molar)') +
+    scale_y_continuous(name = 'Mass-specific \n N:Ag excretion (molar)') +
     scale_x_discrete(labels = c('Year 1', 'Year 2'))
   NAgexcrp
   
@@ -827,7 +732,7 @@
           legend.key.height = unit(1, 'lines'),
           legend.key.width = unit(2, 'lines'),
           legend.position = 'right') +
-    scale_y_continuous(name = 'Mass-corrected \n P:Ag excretion (molar)') +
+    scale_y_continuous(name = 'Mass-specific \n P:Ag excretion (molar)') +
     scale_x_discrete(labels = c('Year 1', 'Year 2'))
   PAgexcrp
   
@@ -836,7 +741,7 @@
             labels = c("(a)", "(b)", "(c)"), 
             font.label = list(size = 10), label.x = 0.2, label.y = 1,
             legend = 'none', common.legend = T, align = 'v')
-  ggsave('final figures/Fig 2.tiff', 
+  ggsave('figures/final-figures/Fig2.tiff', 
          width = 3.33, height = 7, 
          units = 'in', dpi = 1200)
   
@@ -1125,29 +1030,7 @@
          width = 7, height = 4, 
          units = 'in', dpi = 600)
   
-  # Figure S5 ----
-  Nexcr_mod2.p <- ggplot(VMmod, 
-                    aes(x = Mass, y = N.excretion, color = Lake,
-                        shape = Year)) +
-    geom_point(size = 1.5, position = position_dodge(0.5)) +
-    geom_errorbar(aes(ymax = N.excretion + SE.N.excretion, 
-                      ymin = N.excretion - SE.N.excretion), 
-                  width = 0.2, lwd = 0.5, position = position_dodge(0.5)) +
-    # geom_point(aes(x = Mass, y = N.excretion, color = Lake, shape = Year), 
-    #            data = NPexcr %>%  filter(Year != '2014'),
-    #            size = 1.5) +
-    # scale_x_discrete(labels = c('Pre-addition',  'Year 2')) +
-    theme_classic(base_size = 10) +
-    theme(text = element_text(family = "Arial"),
-          axis.title.x = element_blank(),
-          legend.margin = margin(.15, .15, .15, .15, 'cm'),
-          legend.key.height = unit(1, 'lines'), 
-          legend.key.width = unit(2, 'lines'),
-          legend.position = 'top') +
-    scale_colour_manual(name = 'Lake',
-                        labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("black","gray60"))
-  Nexcr_mod2.p
+  
   
   sessionInfo() 
   #################################### END OF CODE ##################################
