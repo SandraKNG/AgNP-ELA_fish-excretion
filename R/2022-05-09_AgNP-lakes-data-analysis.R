@@ -6,6 +6,7 @@
   
   library(tidyverse)
   library(car)
+  library(lme4) # for lmer
   library(RColorBrewer)
   library(emmeans) # post-hoc pairwise comparisons using lm, glm, levDev models
   library(effectsize) # other way to calculate effect size
@@ -25,7 +26,7 @@
   # Pmd <- read.csv('21 05 17 AgNP fish excretion model_R.csv',
   #                   stringsAsFactors = F, na.strings = c("", "NA", "."), 
   #                   strip.white = TRUE, sep = ",")
-  paramm <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
+  parammod <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
                      stringsAsFactors = F, na.strings = c("", "NA", "."), 
                      strip.white = TRUE, sep = ",")
   
@@ -59,8 +60,11 @@
            N.excretion.d = (N.excretion*24)/10^6,
            Total.length.cm = Total.length..mm./10,
            Lake = as.factor(Lake),
-           Year = as.factor(Year)) %>% 
-    filter(Mass!= c(3.75, 2.25))
+           Year = as.factor(Year),
+           Period = factor(ifelse(Year == '2012', 'Before', 'After')),
+           SiteClass = factor(ifelse(Lake == '239','Control', 'Impact')),
+           Period = fct_relevel(Period, 'After', after = Inf)) #%>%
+    #filter(Mass!= c(3.75, 2.25))
   
   str(NPexcr)
   
@@ -74,8 +78,6 @@
   #          Lake = as.factor(Lake))
   # str(Pmod)
   # 
-  parammod <- paramm %>% rename(ac_m = ï..ac_m)
-  str(parammod)
   
 
   ############################### TEST #######################################
@@ -83,7 +85,7 @@
   # ..log10 mass vs log10 N or P excretion for all the data by lake ----
   # visualize Log10 N excretion vs. Log10 mass by Lake
   windows(width = 14, height = 7)
-  ggplot(NPexcr, aes(x = Log10.mass, y = Log10.N.excretion)) +
+  ggplot(NPexcr, aes(x = Log10.mass, y = Log10.N.excretion, col = Year)) +
     geom_point(size = 5) +
     theme_classic(base_size = 26) +
     facet_wrap(~Lake) +
@@ -392,16 +394,16 @@
   X <- aov(Lake ~ Year, data = NPexcr)
   summary(X)
   # ANCOVA
-  lm.Nx <- lm(log(N.excretion) ~ log(Mass)+Year*Lake, 
+  lm.Nx <- lm(log(N.excretion) ~ log(Mass)*Lake, 
                   data = NPexcr %>% filter(Year != '2014'))
   Anova(lm.Nx, type = 'III')
   # which levels are different? Lakes from 2012 vs. 2015
   TukeyHSD(aov(lm.Nxnorm), ordered = F)
   
   # pairwise comparisons using emmeans
-  lm.Nxnorm_emmeans <- emmeans(lm.Nxnorm, ~ Lake|Year, type = 'response')
+  lm.Nxnorm_emmeans <- emmeans(lm.Nx, ~ Lake|Year, type = 'response')
   pairs(lm.Nxnorm_emmeans)
-  emmip(lm.Nxnorm, Lake ~ Year)
+  emmip(lm.Nx, Lake ~ Year)
   lm.Nxnorm_emmeans
   plot(lm.Nxnorm_emmeans, comparison = T)
   
@@ -489,16 +491,17 @@
   
   
   # ANCOVA
-  lm.Px <- aov(log(P.excretion) ~ log(Mass)+Year*Lake, 
+  lm.Px <- lm(log(P.excretion) ~ log(Mass)*Year, 
               data = NPexcr)
   Anova(lm.Px, type = 'III')
+  summary(lm.Px)
   # which levels are different? Lakes from 2014 vs. 2015
   postHocs <- glht(lm.Px, linfct = mcp(Year = "Tukey"))
   
   # emmeans
   lm.Pxnorm_emmeans <- emmeans(lm.Pxnorm, ~ Lake|Year, type = 'response')
   pairs(lm.Pxnorm_emmeans)
-  emmip(lm.Pxnorm, Lake ~ Year)
+  emmip(lm.Px, Lake ~ Year)
   lm.Pxnorm_emmeans
   plot(lm.Pxnorm_emmeans, comparison = T)
   
@@ -745,6 +748,19 @@
          width = 3.33, height = 7, 
          units = 'in', dpi = 1200)
   
+  # V&M model ----
+  total.length <- exp((log(NPexcr$Mass..g./parammod$lwa_m)/parammod$lwb_m))
+  mass <- NPexcr$Mass..g.
+  VM.m <- NPexcr %>%  select(Lake, Year,Temperature, Mass)
+  VM.m <- VM.m %>% mutate(Temperature = replace_na(Temperature, 19),
+                          N.excretion.m = 10^(1.461+0.684*log10(Mass) +
+                                              0.0246*log10(Temperature)-
+                                              0.2013+0.7804),
+                          N.excretion.m.se = 
+                          P.excretion.m = 10^(0.6757+0.5656*log10(Mass) +
+                                              0.0194*log10(Temperature)-
+                                              0.248+0.7504)) 
+  
   
   # FishStoichModel ----
   parameters <- model_parameters("Perca flavescens", otolith = F,
@@ -757,12 +773,13 @@
   # find trophic level
   trophic_level("Perca flavescens")
   
+  
+  
   # ..Run model ----
   # Yellow perch
   total.length <- exp((log(NPexcr$Mass..g./parammod$lwa_m)/parammod$lwb_m))
-  mass <- unique(NPexcr$Mass..g.)
   mass <- NPexcr$Mass..g.
-  FStoichm <- cnp_model_mcmc(TL = total.length, param = parammod)
+  FStoichm <- fishflux::cnp_model_mcmc(TL = total.length, param = parammod, iter = 5000)
   output <- fishflux::extract(FStoichm, c("Fn","Fp", "Ic", "Gp", "lim", 
                                           "Sc", "Sn", "Sp"))
   
@@ -835,6 +852,55 @@
     annotate("text", x = 0.15, y = 56, label = '(b)',
              size = 4, fontface = 'bold')
   Pexcr_mod.p
+  
+  # plot N excretion
+  Nexcr_mod2.p <- 
+    ggplot(data = VM.m, aes(x = Mass, y = N.excretion)) +
+    geom_smooth(alpha = 0.8, show.legend = F) +
+    # scale_fill_brewer() +
+    theme_classic(base_size = 10) +
+    geom_point(aes(x = Mass, y = N.excretion, color = Lake, shape = Year), 
+               data = NPexcr %>%  filter(Year != '2014'),
+               size = 1.5) +
+    labs(x = "Dry mass (g)", y = "N excretion (μg N/ind/h)") +
+    scale_colour_manual(name = 'Lake',
+                        labels = c('AgNPs 222', 'Reference 239'),
+                        values = c("black","gray60")) +
+    scale_shape_manual(labels = c('Pre-addition', 'Year 2'),
+                       values = c(16, 15, 17), na.translate = F) +
+    theme(text = element_text(family = "Arial"),
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          legend.margin = margin(.15, .15, .15, .15, 'cm'),
+          legend.key.height = unit(1, 'lines'), 
+          legend.key.width = unit(2, 'lines'),
+          legend.position = 'none') +
+    annotate("text", x = 0.15, y = 2300, label = '(a)',
+             size = 4, fontface = 'bold')
+  Nexcr_mod2.p
+  
+  # plot P excretion
+  Pexcr_mod2.p <- 
+    ggplot(VM.m, aes(x = Mass, y = P.excretion)) +
+    geom_smooth() +
+    theme_classic(base_size = 10) +
+    geom_point(aes(x = Mass, y = P.excretion, color = Lake, shape = Year), 
+               data = NPexcr, size = 1.5) +
+    labs(x = "Dry mass (g)", 
+         y = "P excretion (μg P/ind/h)") +
+    scale_colour_manual(name = 'Lake',
+                        labels = c('AgNPs 222', 'Reference 239'),
+                        values = c("black","gray60")) +
+    scale_shape_manual(labels = c('Pre-addition', 'Year 1', 'Year 2'),
+                       values = c(16, 17, 15), na.translate = F) +
+    theme(text = element_text(family = "Arial"),
+          legend.margin = margin(.15, .15, .15, .15, 'cm'),
+          legend.key.height = unit(1, 'lines'), 
+          legend.key.width = unit(2, 'lines'),
+          legend.position = 'right') +
+    annotate("text", x = 0.15, y = 56, label = '(b)',
+             size = 4, fontface = 'bold')
+  Pexcr_mod2.p
   
   # combine all graphs into figure 3 ----
   # get legend function
