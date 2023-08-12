@@ -2,7 +2,7 @@
   # yellow perch (Perca flavescens) in a boreal lake ***
   # this code was developped by S. Klemet-N'Guessan in 2020 and 2021
 
-  # load libraries and read silver nanoparticles (NP) dataset ----
+  # load libraries ----
   
   library(tidyverse)
   library(car)
@@ -20,17 +20,17 @@
   library(cowplot) # to align multiple plots
   library(datawizard) # to do summary statistics
 
+  # read silver nanoparticles (NP) dataset ----
   NPer <- read.csv('data/2020-04-21_AgNP-ELA-lakes_fish-excretion.csv',
                    stringsAsFactors = F, na.strings = c("", "NA", "."), 
                    strip.white = TRUE, sep = ",")
-  # Pmd <- read.csv('21 05 17 AgNP fish excretion model_R.csv',
-  #                   stringsAsFactors = F, na.strings = c("", "NA", "."), 
-  #                   strip.white = TRUE, sep = ",")
-  parammod <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
+  param <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
                      stringsAsFactors = F, na.strings = c("", "NA", "."), 
                      strip.white = TRUE, sep = ",")
+  str(param)
+  parammod <- as.list(param)
   
-  str(paramm)
+  
   
   str(NPer)
   head(NPer)
@@ -46,6 +46,7 @@
            Excreted.NP = Excreted.N.P..molar.,
            Excreted.CP = Excreted.C.P..molar.,
            Mass = Dry.mass..g.,
+           Wet.mass = Mass..g.,
            Temperature = Temperature..,
            FishID = Fish.ID) %>% 
     mutate(Log.mass = log(Mass),
@@ -157,7 +158,7 @@
   lm(Log10.C.excretion ~ Log10.mass,
      data = NPexcr %>% filter(Lake == '239')) # b coeff = -1.34
   
-  # ..do mass-normalized N and P excretion ----
+  # ..do mass-corrected N and P excretion ----
   # get coeffs of variation for allometric  relationship
   NPmasscorr.combined <- data.frame(Lake = c('222', '239', '222', '239'),
                                     b.coeff.N.excr = c(b.N222, b.N239),
@@ -749,17 +750,33 @@
          units = 'in', dpi = 1200)
   
   # V&M model ----
-  total.length <- exp((log(NPexcr$Mass..g./parammod$lwa_m)/parammod$lwb_m))
-  mass <- NPexcr$Mass..g.
-  VM.m <- NPexcr %>%  select(Lake, Year,Temperature, Mass)
-  VM.m <- VM.m %>% mutate(Temperature = replace_na(Temperature, 19),
-                          N.excretion.m = 10^(1.461+0.684*log10(Mass) +
-                                              0.0246*log10(Temperature)-
-                                              0.2013+0.7804),
-                          N.excretion.m.se = 
-                          P.excretion.m = 10^(0.6757+0.5656*log10(Mass) +
-                                              0.0194*log10(Temperature)-
-                                              0.248+0.7504)) 
+  VM.m <- NPexcr %>%  select(Lake, Year, Temperature, Mass)
+  VM.m <- VM.m %>% mutate(
+    Temperature = replace_na(Temperature, 19),
+    N.excretion.m = 10^(1.461 + 0.684 * log10(Mass) + 
+                          0.0246 * Temperature - 0.2013 + 0.7804),
+    N.excretion.m.se = 10^(0.0897 + 0.0177 * log10(Mass) + 
+                             0.0014 * Temperature - 0.0771 + 0.0655),
+    P.excretion.m = 10^(0.6757 + 0.5656 * log10(Mass) + 
+                         0.0194 * Temperature - 0.248 + 0.7504),
+    P.excretion.m.se = 10^(0.0992 + 0.0205 * log10(Mass) +
+                             0.002 * Temperature - 0.0922 + 0.0768),
+    ) %>% 
+    dplyr::filter(!is.na(Mass))
+  
+  # Select columns and repeat values
+  VM.m_sub <- VM.m %>% 
+    select(starts_with(c('N', 'P', 'M'))) 
+  
+  iter_yp_VM <- data.frame(
+      N.excretion.m = rep(VM.m_sub$N.excretion.m, each = 2500),
+      N.excretion.m.se = rep(VM.m_sub$N.excretion.m.se, each = 2500),
+      P.excretion.m = rep(VM.m_sub$P.excretion.m, each = 2500),
+      P.excretion.m.se = rep(VM.m_sub$P.excretion.m.se, each = 2500),
+      Mass = rep(VM.m_sub$Mass, each = 2500),
+      iter = rep(1:2500, each = 120)
+    ) 
+  
   
   
   # FishStoichModel ----
@@ -777,9 +794,11 @@
   
   # ..Run model ----
   # Yellow perch
-  total.length <- exp((log(NPexcr$Mass..g./parammod$lwa_m)/parammod$lwb_m))
-  mass <- NPexcr$Mass..g.
-  FStoichm <- fishflux::cnp_model_mcmc(TL = total.length, param = parammod, iter = 5000)
+  total.length <- exp((log(NPexcr$Wet.mass[!is.na(NPexcr$Wet.mass)]/
+                             parammod$lwa_m)/parammod$lwb_m))
+  wet.mass <- NPexcr$Wet.mass[!is.na(NPexcr$Wet.mass)]
+  FStoichm <- fishflux::cnp_model_mcmc(TL = total.length, param = parammod, 
+                                       iter = 5000)
   output <- fishflux::extract(FStoichm, c("Fn","Fp", "Ic", "Gp", "lim", 
                                           "Sc", "Sn", "Sp"))
   
@@ -793,101 +812,109 @@
   }
   iter_yp <- (lapply(FStoichm$stanfit, FUN = function(x){
     rstan::extract(x, c("Fn", "Fp", "w1", "Ic", "IN"))})) %>%
-    lapply(FUN = get_iter) %>%
+    lapply( FUN = get_iter) %>%
     dplyr::bind_rows()
-  iter_yp <- iter_yp %>% mutate(tl = rep(total.length, each = 500),
-                                mass = rep(NPexcr$Mass..g., each = 500),
-                                dry.mass = mass*0.25,
-                                N.excretion.mod = Fn*10^6/24,
-                                P.excretion.mod = Fp*10^6/24,
-                                C.ingestion.mod = Ic*10^6/24)
+  
+  iter_yp <- iter_yp %>% 
+    mutate(
+      tl = rep(total.length, each = 2500),
+      wet.mass = rep(NPexcr$Wet.mass[!is.na(NPexcr$Wet.mass)], each = 2500),
+      dry.mass = rep(NPexcr$Mass[!is.na(NPexcr$Mass)], each = 2500),
+      N.excretion.mod = Fn * 10 ^ 6 / 24,
+      P.excretion.mod = Fp * 10 ^ 6 / 24,
+      C.ingestion.mod = Ic * 10 ^ 6 / 24
+    )
   
   # ..Figure 3 ----
-  # plot N excretion
+  # N excretion ----
   Nexcr_mod.p <- 
     ggplot(group_by(iter_yp, iter), aes(x = dry.mass, y = N.excretion.mod)) +
-    stat_lineribbon(alpha = 0.8, show.legend = F) +
+    stat_lineribbon(alpha = 0.8, linewidth = 0.6, show.legend = F) +
     scale_fill_brewer() +
-    theme_classic(base_size = 10) +
+    theme_classic(base_size = 8) +
     geom_point(aes(x = Mass, y = N.excretion, color = Lake, shape = Year), 
                data = NPexcr %>%  filter(Year != '2014'),
                size = 1.5) +
-    labs(x = "Dry mass (g)", y = "N excretion (μg N/ind/h)") +
+    labs(x = "", y = "N excretion (μg N/ind/h)") +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs 222', 'Reference 239'),
                         values = c("black","gray60")) +
     scale_shape_manual(labels = c('Pre-addition', 'Year 2'),
                        values = c(16, 15, 17), na.translate = F) +
+    ylim(0, 2000) +
     theme(text = element_text(family = "Arial"),
           axis.title.x = element_blank(),
           axis.text.x = element_blank(),
           legend.margin = margin(.15, .15, .15, .15, 'cm'),
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
-          legend.position = 'none') +
-    annotate("text", x = 0.15, y = 2300, label = '(a)',
-             size = 4, fontface = 'bold')
+          legend.position = 'none') 
   Nexcr_mod.p
   
-  # plot P excretion
+  # P excretion ----
   Pexcr_mod.p <- 
     ggplot(group_by(iter_yp, iter), aes(x = dry.mass, y = P.excretion.mod)) +
-    stat_lineribbon(alpha = 0.8, show.legend = F) +
+    stat_lineribbon(alpha = 0.8, linewidth = 0.6, show.legend = F) +
     scale_fill_brewer() +
-    theme_classic(base_size = 10) +
+    theme_classic(base_size = 8) +
     geom_point(aes(x = Mass, y = P.excretion, color = Lake, shape = Year), 
                data = NPexcr, size = 1.5) +
-    labs(x = "Dry mass (g)", 
+    labs(x = "", 
          y = "P excretion (μg P/ind/h)") +
+    ylim(0, 80) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs 222', 'Reference 239'),
                         values = c("black","gray60")) +
     scale_shape_manual(labels = c('Pre-addition', 'Year 1', 'Year 2'),
                        values = c(16, 17, 15), na.translate = F) +
     theme(text = element_text(family = "Arial"),
+          axis.text.x = element_blank(),
           legend.margin = margin(.15, .15, .15, .15, 'cm'),
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
-          legend.position = 'right') +
-    annotate("text", x = 0.15, y = 56, label = '(b)',
-             size = 4, fontface = 'bold')
+          legend.position = 'right') 
   Pexcr_mod.p
   
-  # plot N excretion
+  # N excretion ----
   Nexcr_mod2.p <- 
-    ggplot(data = VM.m, aes(x = Mass, y = N.excretion)) +
-    geom_smooth(alpha = 0.8, show.legend = F) +
-    # scale_fill_brewer() +
-    theme_classic(base_size = 10) +
+    ggplot(group_by(iter_yp_VM, iter), aes(x = Mass, y = N.excretion.m)) +
+    # stat_lineribbon(alpha = 0.8, show.legend = F) +
+    geom_line() +
+    geom_ribbon(aes(ymin = N.excretion.m - N.excretion.m.se,
+                    ymax = N.excretion.m + N.excretion.m.se), alpha = .1) +
+    scale_fill_brewer() +
+    theme_classic(base_size = 8) +
     geom_point(aes(x = Mass, y = N.excretion, color = Lake, shape = Year), 
                data = NPexcr %>%  filter(Year != '2014'),
                size = 1.5) +
-    labs(x = "Dry mass (g)", y = "N excretion (μg N/ind/h)") +
+    labs(x = "Dry mass (g)", 
+         y = "N excretion (μg N/ind/h)") +
+    ylim(0, 2000) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs 222', 'Reference 239'),
                         values = c("black","gray60")) +
     scale_shape_manual(labels = c('Pre-addition', 'Year 2'),
                        values = c(16, 15, 17), na.translate = F) +
     theme(text = element_text(family = "Arial"),
-          axis.title.x = element_blank(),
-          axis.text.x = element_blank(),
           legend.margin = margin(.15, .15, .15, .15, 'cm'),
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
-          legend.position = 'none') +
-    annotate("text", x = 0.15, y = 2300, label = '(a)',
-             size = 4, fontface = 'bold')
+          legend.position = 'none') 
   Nexcr_mod2.p
   
-  # plot P excretion
+  # P excretion ----
   Pexcr_mod2.p <- 
-    ggplot(VM.m, aes(x = Mass, y = P.excretion)) +
-    geom_smooth() +
-    theme_classic(base_size = 10) +
+    ggplot(group_by(iter_yp_VM, iter), aes(x = Mass, y = P.excretion.m)) +
+    geom_line() +
+    geom_ribbon(aes(ymin = P.excretion.m - P.excretion.m.se,
+                    ymax = P.excretion.m + P.excretion.m.se), alpha = .1) +
+    scale_fill_brewer() +
+    theme_classic(base_size = 8) +
     geom_point(aes(x = Mass, y = P.excretion, color = Lake, shape = Year), 
                data = NPexcr, size = 1.5) +
     labs(x = "Dry mass (g)", 
          y = "P excretion (μg P/ind/h)") +
+    ylim(0, 80) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs 222', 'Reference 239'),
                         values = c("black","gray60")) +
@@ -897,14 +924,12 @@
           legend.margin = margin(.15, .15, .15, .15, 'cm'),
           legend.key.height = unit(1, 'lines'), 
           legend.key.width = unit(2, 'lines'),
-          legend.position = 'right') +
-    annotate("text", x = 0.15, y = 56, label = '(b)',
-             size = 4, fontface = 'bold')
+          legend.position = 'right')
   Pexcr_mod2.p
   
   # combine all graphs into figure 3 ----
   # get legend function
-  get_legend<-function(a.gplot){
+  get_legend <- function(a.gplot){
     tmp <- ggplot_gtable(ggplot_build(a.gplot))
     leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
     legend <- tmp$grobs[[leg]]
@@ -913,11 +938,14 @@
   fig3.legend <- get_legend(Pexcr_mod.p)
   
   windows(width = 14, height = 7)
-  ggarrange(Nexcr_mod.p, Pexcr_mod.p, nrow = 2,
-            legend = 'right', common.legend = F, align = 'v', 
+  ggarrange(Nexcr_mod.p, Pexcr_mod.p, Nexcr_mod2.p, Pexcr_mod2.p, 
+            nrow = 2, ncol = 2,
+            legend = 'right', common.legend = F, align = 'hv', 
+            labels = c('(a)', '(b)', '(c)', '(d)'), 
+            label.x = 0.15, label.y = 1, font.label = list(size = 8), 
             legend.grob = fig3.legend)
-  ggsave('final figures/Fig 3.tiff', 
-         width = 5, height =  5, 
+  ggsave('figures/final-figures/Fig3.tiff', 
+         width = 7, height =  4, 
          units = 'in', dpi = 300)
   
   # ..Figure 4 ----
