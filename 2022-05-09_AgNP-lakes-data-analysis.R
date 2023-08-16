@@ -395,14 +395,14 @@
   X <- aov(Lake ~ Year, data = NPexcr)
   summary(X)
   # ANCOVA
-  lm.Nx <- lm(log(N.excretion) ~ log(Mass)*Lake, 
+  lm.Nx <- lm(log(N.excretion) ~ log(Mass)*Year, 
                   data = NPexcr %>% filter(Year != '2014'))
   Anova(lm.Nx, type = 'III')
   # which levels are different? Lakes from 2012 vs. 2015
   TukeyHSD(aov(lm.Nxnorm), ordered = F)
   
   # pairwise comparisons using emmeans
-  lm.Nxnorm_emmeans <- emmeans(lm.Nx, ~ Lake|Year, type = 'response')
+  lm.Nxnorm_emmeans <- emmeans(lm.Nxnorm, ~ Lake|Year, type = 'response')
   pairs(lm.Nxnorm_emmeans)
   emmip(lm.Nx, Lake ~ Year)
   lm.Nxnorm_emmeans
@@ -451,24 +451,24 @@
           legend.position = 'top') +
     scale_colour_manual(name = 'Lake',
                       labels = c('AgNPs L222', 'Reference L239'),
-                      values = c("black","gray60")) +
+                      values = c("gray60", "black")) +
     scale_y_continuous(name = 'Mass-specific \n N excretion (μg N/g/h)') +
     # annotate("text", x = 0.5, y = 9500, label = 'A)', 
     #          size = 9, fontface = 'bold') +
     annotate("text", x = 0.87, y = 995, label = 'a', 
-             size = 3, fontface = 'bold') +
-    annotate("text", x = 1.12, y = 1095, label = 'a', 
              size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.87, y = 3895, label = 'b', 
+    annotate("text", x = 1.12, y = 1095, label = 'a', 
              size = 3, fontface = 'bold') +
+    annotate("text", x = 1.87, y = 3895, label = 'b', 
+             size = 3, fontface = 'bold', color = 'gray60') +
     annotate("text", x = 2.12, y = 2695, label = 'b', 
-             size = 3, fontface = 'bold', color = 'gray60')
+             size = 3, fontface = 'bold')
   Nexcr.p
   
   # .....effect sizes from 2012 2015 using model ----
   windows(width = 14, height = 7)
-  eff_sizeN.p <- ggplot(eff_sizeNxdf2,
-                        aes(x = Year, y = exp(effect.size))) +
+  eff_sizeN.p <- ggplot(eff_sizeNxdf,
+                        aes(x = Year, y = exp(estimate))) +
     #geom_point(size = 1.5) +
     geom_pointrange(aes(ymax = exp(lower.CL), ymin = exp(upper.CL)),lwd = 0.4) +
     #coord_flip() +
@@ -492,7 +492,7 @@
   
   
   # ANCOVA
-  lm.Px <- lm(log(P.excretion) ~ log(Mass)*Year, 
+  lm.Px <- lm(log(P.excretion) ~ log(Mass)*Lake, 
               data = NPexcr)
   Anova(lm.Px, type = 'III')
   summary(lm.Px)
@@ -538,25 +538,25 @@
     scale_y_continuous(name = 'Mass-specific \n P excretion (μg P/g/h)') +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("black","gray60")) +
+                        values = c("gray60", "black")) +
     annotate("text", x = 0.87, y = 39, label = 'a', 
-             size = 3, fontface = 'bold') +
+             size = 3, fontface = 'bold', color = 'gray60') +
     annotate("text", x = 1.12, y = 147, label = 'b', 
-             size = 3, fontface = 'bold', color = 'gray60') +
+             size = 3, fontface = 'bold') +
     annotate("text", x = 1.87, y = 36, label = 'a', 
-             size = 3, fontface = 'bold') +
-    annotate("text", x = 2.12, y = 100, label = 'b', 
              size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 2.87, y = 99, label = 'c', 
+    annotate("text", x = 2.12, y = 100, label = 'b', 
              size = 3, fontface = 'bold') +
+    annotate("text", x = 2.87, y = 99, label = 'c', 
+             size = 3, fontface = 'bold', color = 'gray60') +
     annotate("text", x = 3.12, y = 123, label = 'bc', 
-             size = 3, fontface = 'bold', color = 'gray60')
+             size = 3, fontface = 'bold')
   Pexcr.p
   
   # .....effect sizes from 2012-2015 using model ----
   windows(width = 14, height = 7)
   eff_sizeP.p <- ggplot(eff_sizePxdf,
-         aes(x = Year, y = exp(-effect.size))) +
+         aes(x = Year, y = exp(-estimate))) +
     #geom_point(size = 1.5) +
     geom_pointrange(aes(ymax = exp(-lower.CL), ymin = exp(-upper.CL)),lwd = 0.4) +
     #coord_flip() +
@@ -580,7 +580,7 @@
   TukeyHSD(aov(lm.NPxnorm), ordered = F)
   
   # emmeans
-  lm.NPxnorm_emmeans <- emmeans(lm.NPxnorm, ~ Lake:Year, type = 'response')
+  lm.NPxnorm_emmeans <- emmeans(lm.NPxnorm, ~ Lake|Year, type = 'response')
   lm.NPxnorm_emmeans
   pairs(lm.NPxnorm_emmeans)
   
@@ -618,23 +618,21 @@
     scale_x_discrete(labels = c('Pre-addition', 'Year 2')) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("black","gray60")) +
-    # annotate("text", x = 0.5, y = 450, label = 'E)', 
-    #          size = 9, fontface = 'bold') +
+                        values = c("gray60", "black")) +
     annotate("text", x = 0.87, y = 80, label = 'a', 
-             size = 3, fontface = 'bold') +
-    annotate("text", x = 1.12, y = 40, label = 'b', 
              size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.87, y = 160, label = 'c', 
+    annotate("text", x = 1.12, y = 40, label = 'b', 
              size = 3, fontface = 'bold') +
+    annotate("text", x = 1.87, y = 160, label = 'c', 
+             size = 3, fontface = 'bold', color = 'gray60') +
     annotate("text", x = 2.12, y = 115, label = 'ac', 
-             size = 3, fontface = 'bold', color = 'gray60') 
+             size = 3, fontface = 'bold') 
   NPexcr.p
   
   # .....effect sizes from 2012 2015 using model ----
   windows(width = 14, height = 7)
   eff_sizeNP.p <- ggplot(eff_sizeNPxdf,
-                         aes(x = Year, y = exp(effect.size))) +
+                         aes(x = Year, y = exp(estimate))) +
     geom_point(size = 1.5) +
     geom_pointrange(aes(ymax = exp(lower.CL), ymin = exp(upper.CL)),lwd = 0.4) +
     #coord_flip() +
@@ -750,9 +748,10 @@
          units = 'in', dpi = 1200)
   
   # V&M model ----
+  set.seed(1)
   VM.m <- NPexcr %>%  select(Lake, Year, Temperature, Mass)
-  VM.m <- VM.m %>% mutate(
-    Temperature = replace_na(Temperature, 19),
+  VM.m <- VM.m %>% group_by(Lake, Year) %>% 
+    mutate(Temperature = replace_na(Temperature, sample(16:20, 1)),
     N.excretion.m = 10^(1.461 + 0.684 * log10(Mass) + 
                           0.0246 * Temperature - 0.2013 + 0.7804),
     N.excretion.m.se = 10^(0.0897 + 0.0177 * log10(Mass) + 
@@ -762,6 +761,7 @@
     P.excretion.m.se = 10^(0.0992 + 0.0205 * log10(Mass) +
                              0.002 * Temperature - 0.0922 + 0.0768),
     ) %>% 
+    ungroup() %>% 
     dplyr::filter(!is.na(Mass))
   
   # Select columns and repeat values
@@ -777,9 +777,8 @@
       iter = rep(1:2500, each = 120)
     ) 
   
-  
-  
   # FishStoichModel ----
+  # set up parameters
   parameters <- model_parameters("Perca flavescens", otolith = F,
                                            family = "Percidae", temp = 18, mirror = "se")
   # find length-weight relationship and caudal fin aspect ratio
@@ -789,8 +788,6 @@
   growth_params <- growth_params("Perca flavescens", otolith = FALSE)
   # find trophic level
   trophic_level("Perca flavescens")
-  
-  
   
   # ..Run model ----
   # Yellow perch
@@ -838,7 +835,7 @@
     labs(x = "", y = "N excretion (μg N/ind/h)") +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs 222', 'Reference 239'),
-                        values = c("black","gray60")) +
+                        values = c("gray60", "black")) +
     scale_shape_manual(labels = c('Pre-addition', 'Year 2'),
                        values = c(16, 15, 17), na.translate = F) +
     ylim(0, 2000) +
@@ -864,7 +861,7 @@
     ylim(0, 80) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs 222', 'Reference 239'),
-                        values = c("black","gray60")) +
+                        values = c("gray60", "black")) +
     scale_shape_manual(labels = c('Pre-addition', 'Year 1', 'Year 2'),
                        values = c(16, 17, 15), na.translate = F) +
     theme(text = element_text(family = "Arial"),
@@ -892,7 +889,7 @@
     ylim(0, 2000) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs 222', 'Reference 239'),
-                        values = c("black","gray60")) +
+                        values = c("gray60", "black")) +
     scale_shape_manual(labels = c('Pre-addition', 'Year 2'),
                        values = c(16, 15, 17), na.translate = F) +
     theme(text = element_text(family = "Arial"),
@@ -917,7 +914,7 @@
     ylim(0, 80) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs 222', 'Reference 239'),
-                        values = c("black","gray60")) +
+                        values = c("gray60", "black")) +
     scale_shape_manual(labels = c('Pre-addition', 'Year 1', 'Year 2'),
                        values = c(16, 17, 15), na.translate = F) +
     theme(text = element_text(family = "Arial"),
