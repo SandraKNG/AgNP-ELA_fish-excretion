@@ -21,65 +21,71 @@
   library(datawizard) # to do summary statistics
 
   # read silver nanoparticles (NP) dataset ----
-  NPer <- read.csv('data/2020-04-21_AgNP-ELA-lakes_fish-excretion.csv',
-                   stringsAsFactors = F, na.strings = c("", "NA", "."), 
-                   strip.white = TRUE, sep = ",")
-  param <- read.csv('data/2021-09-20_param_modelsp_FishStoich.csv',
-                     stringsAsFactors = F, na.strings = c("", "NA", "."), 
-                     strip.white = TRUE, sep = ",")
-  str(param)
-  parammod <- as.list(param)
-  
-  
+  NPer <- read_csv('data/2020-04-21_AgNP-ELA-lakes_fish-excretion.csv')
+  param <- read_csv('data/2021-09-20_param_modelsp_FishStoich.csv')
+  NPer_22 <- read_csv('data/2022-07-11_11-DOC-lakes_Mastersheet_YP.csv')
   
   str(NPer)
   head(NPer)
+  str(param)
+  parammod <- as.list(param)
   
   # clean, rename, and add variables to the dataset ----
   NPexcr <- NPer %>% 
-    rename(Year = Sampling.year,
-           N.excretion = N.excretion.rate..µg.ind.h.,
-           P.excretion = P.excretion.rate..µg.ind.h.,
-           C.excretion = C.excretion..mg.C.ind.h.,
-           Tag.excretion = Tag.excretion.rate..µg.ind.h.,
-           Excreted.CN = Excreted.C.N..molar.,
-           Excreted.NP = Excreted.N.P..molar.,
-           Excreted.CP = Excreted.C.P..molar.,
-           Mass = Dry.mass..g.,
-           Wet.mass = Mass..g.,
-           Temperature = Temperature..,
-           FishID = Fish.ID) %>% 
-    mutate(Log.mass = log(Mass),
-           Log10.mass = log10(Mass),
-           Log.N.excretion = log(N.excretion),
-           Log.P.excretion = log(P.excretion),
-           Log.Tag.excretion = log(Tag.excretion),
-           Log10.N.excretion = log10(N.excretion),
-           Log10.P.excretion = log10(P.excretion),
-           Log10.C.excretion = log10(C.excretion),
-           P.excretion.d = (P.excretion*24)/10^6, # P excretion rate from ug/h to g/d
-           N.excretion.d = (N.excretion*24)/10^6,
-           Total.length.cm = Total.length..mm./10,
+    rename(Year = `Sampling year`,
+           N.excretion.rate = `N excretion rate (µg/ind/h)`,
+           P.excretion.rate = `P excretion rate (µg/ind/h)`,
+           C.excretion.rate = `C excretion (µg C/ind/h)`,
+           Tag.excretion.rate = `Tag excretion rate (µg/ind/h)`,
+           Excreted.CN = `Excreted C:N (molar)`,
+           Excreted.NP = `Excreted N:P (molar)`,
+           Excreted.CP = `Excreted C:P (molar)`,
+           Mass = `Dry mass (g)`,
+           Wet.mass = `Mass (g)`,
+           Temperature = `Temperature ©`,
+           FishID = 'Fish ID') %>% 
+    mutate(
+           # P.excretion.d = (P.excretion.rate*24)/10^6, # P excretion rate from ug/h to g/d
+           # N.excretion.d = (N.excretion.rate*24)/10^6,
+           Total.length.cm = `Total length (mm)`/10,
            Lake = as.factor(Lake),
            Year = as.factor(Year),
            Period = factor(ifelse(Year == '2012', 'Before', 'After')),
            SiteClass = factor(ifelse(Lake == '239','Control', 'Impact')),
-           Period = fct_relevel(Period, 'After', after = Inf)) #%>%
-    #filter(Mass!= c(3.75, 2.25))
+           Period = fct_relevel(Period, 'After', after = Inf)) %>%
+    filter(!Mass == 3.75)
   
   str(NPexcr)
   
+  NPexcr_22 <- NPer_22 %>% 
+    select(ID, Site.name, Species.code, N.excretion.rate, P.excretion.rate, 
+           C.excretion.rate, Dry.mass) %>% 
+    rename(
+      Lake = Site.name,
+      Mass = Dry.mass
+    ) %>% 
+    filter(
+      !(Species.code %in% c('CTL1', 'CTL2'))
+    ) %>% 
+    dplyr::mutate(
+      Year = factor(2022),
+      Lake = if_else(Lake == 'L239', '239', '222')
+    ) %>% 
+    # group_by(Lake) %>% 
+    # dplyr::mutate(
+    #   Sample.type = paste('F', seq(1,15|20)),
+    #   FishID = paste('22', Lake, Sample.type)
+    # ) %>% 
+    # ungroup()
+    dplyr::filter(Mass <= 2.25) %>% 
+    group_by(Lake) %>% 
+    filter(case_when(
+      Lake == '239' ~ Mass < .5,
+      TRUE ~ TRUE
+    ))
   
-  # str(Pmd)
-  # Pmod <- Pmd %>% rename(Ingestion.rate = ï..Ingestion.rate,
-  #                        ModP.excretion = Modelled.P.excretion.rate,
-  #                        MeasP.excretion = Measured.P.excretion) %>% 
-  #   mutate(FoodCP = as.factor(Food.C.P),
-  #          Year = as.factor(Year),
-  #          Lake = as.factor(Lake))
-  # str(Pmod)
-  # 
-  
+  # join two datasets
+  NPexcr <- bind_rows(NPexcr, NPexcr_22)
 
   ############################### TEST #######################################
   
@@ -160,21 +166,17 @@
   
   # ..do mass-corrected N and P excretion ----
   # get coeffs of variation for allometric  relationship
-  NPmasscorr.combined <- data.frame(Lake = c('222', '239', '222', '239'),
-                                    b.coeff.N.excr = c(b.N222, b.N239),
-                                    b.coeff.P.excr = c(b.P222, b.P239))
+  # NPmasscorr.combined <- data.frame(Lake = c('222', '239', '222', '239'),
+  #                                   b.coeff.N.excr = c(b.N222, b.N239),
+  #                                   b.coeff.P.excr = c(b.P222, b.P239))
   
   # mass-correct the excretion WITHOUT coeff of variation 
   NPexcr <- NPexcr %>% 
-    mutate(massnorm.N.excr = N.excretion/Mass,
-           massnorm.P.excr = P.excretion/Mass,
-           massnorm.C.excr = C.excretion/Mass,
-           massnorm.Tag.excr = Tag.excretion/Mass,
-           Log10.massnorm.Tag.excr = log10(massnorm.Tag.excr),
-           Log10.massnorm.N.excr = log10(massnorm.N.excr),
-           Log10.massnorm.P.excr = log10(massnorm.P.excr),
+    mutate(massnorm.N.excr = N.excretion.rate/Mass,
+           massnorm.P.excr = P.excretion.rate/Mass,
+           massnorm.C.excr = C.excretion.rate/Mass,
+           massnorm.Tag.excr = Tag.excretion.rate/Mass,
            massnorm.NP.excr = (massnorm.N.excr/massnorm.P.excr)/(14/31),
-           Log10.massnorm.NP.excr = log10(massnorm.NP.excr),
            massnorm.CN.excr = (massnorm.C.excr/massnorm.N.excr)/(12/14),
            massnorm.CP.excr = (massnorm.C.excr/massnorm.P.excr)/(12/31),
            massnorm.NP.excr2 = Excreted.NP/Mass,
@@ -205,32 +207,14 @@
   
   # ..summary statistics info for paper methods & discussion ----
   
-  NPexcr.ss1 <- NPexcr %>% group_by(Lake) %>%
-    summarize(Mass.min = min(Mass, na.rm = TRUE),
-              Mass.max = max(Mass, na.rm = TRUE),
-              Mass.av = mean(Mass, na.rm = TRUE),
-              Mass.sd = sd(Mass, na.rm = TRUE),
-              massnorm.N.excr.min = min(massnorm.N.excr, na.rm = TRUE),
-              massnorm.N.excr.max = max(massnorm.N.excr, na.rm = TRUE),
-              massnorm.N.excr.av = mean(massnorm.N.excr, na.rm = TRUE),
-              massnorm.N.excr.sd = sd(massnorm.N.excr, na.rm = TRUE),
-              massnorm.P.excr.min = min(massnorm.P.excr, na.rm = TRUE),
-              massnorm.P.excr.max = max(massnorm.P.excr, na.rm = TRUE),
-              massnorm.P.excr.sd = sd(massnorm.P.excr, na.rm = TRUE))
-  
   NPexcr.ss1 <- NPexcr %>% group_by(Lake, Year) %>%
     select(c('Mass', 'massnorm.N.excr', 'massnorm.P.excr')) %>% 
     describe_distribution() 
   
-  NPexcr.ss2 <- NPexcr %>% group_by(Lake, Year) %>%
-    summarize(Tag.excr.min = min(massnorm.Tag.excr, na.rm = T),
-              Tag.excr.max = max(massnorm.Tag.excr, na.rm = T),
-              Tag.excr.av = mean(massnorm.Tag.excr, na.rm = T),
-              Tag.excr.sd = sd(massnorm.Tag.excr, na.rm = T),
-              P.excretion.av = mean(P.excretion, na.rm = T),
-              WMass.av = mean(Mass..g., na.rm = T),
-              DMass.av = mean(Mass, na.rm = T),
-              Temp.av = mean(Temperature, na.rm = T))
+  NPexcr.ss <- NPexcr %>% group_by(Lake, Year) %>%
+    select(c('Mass', 'massnorm.N.excr', 'massnorm.P.excr')) %>% 
+    describe_distribution() 
+
            
   ################################ ASSUMPTIONS CHECK ########################
   
@@ -327,6 +311,11 @@
   
   
   ############################ DATA ANALYSIS & FIGURES ############################
+  # set up plot parameters ----
+  lake.labels <- c('AgNPs L222', 'Reference L239')
+  exp.labels <- c('Pre-addition', 'Year 1','Year 2', 'Post-addition')
+  exp_red.labels <- c('Pre-addition', 'Year 2', 'Post-addition')
+  lake.colors <- c("gray60", "black")
   
   # ..fish mass ----
   
@@ -349,64 +338,44 @@
                 position = position_jitterdodge(jitter.width = 0.2),
                 show.legend = FALSE, alpha = 0.5) +
     theme_classic(base_size = 10) +
-    # stat_compare_means(method = 'anova') +
     geom_boxplot(outlier.shape = NA, size = 0.5, fill = NA) +
-    scale_x_discrete(labels = c('Pre-addition',  'Year 1', "Year 2")) +
+    scale_x_discrete(labels = exp.labels) +
     labs(x = '',
          y = 'Dry mass (g)') +
-    theme(text = element_text(family = "Arial"),
-          axis.title.x = element_blank(),
-          # axis.text.x = element_blank(),
-          # axis.title.y = element_text(vjust = +1),
-          legend.margin = margin(.15, .15, .15, .15, 'cm'),
-          legend.key.height = unit(1, 'lines'), 
-          legend.key.width = unit(2, 'lines'),
-          legend.position = 'right') +
     scale_colour_manual(name = 'Lake',
-                        labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("black","gray60")) +
-    annotate("text", x = 0.81, y = 1.6, label = 'a', 
-             size = 4, fontface = 'bold') +
-    annotate("text", x = 1.19, y = 0.36, label = 'b', 
-             size = 4, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.81, y = 1.40, label = 'a', 
-             size = 4, fontface = 'bold') +
-    annotate("text", x = 2.2, y = 0.5, label = 'b', 
-             size = 4, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 2.81, y = 0.45, label = 'c', 
-             size = 4, fontface = 'bold') +
-    annotate("text", x = 3.18, y = 0.30, label = 'bc', 
-             size = 4, fontface = 'bold', color = 'gray60')
+                        labels = lake.labels,
+                        values = lake.colors)
   mexcrp
   
-  ggsave('final figures/Fig S1.tiff', 
+  ggsave('figures/final-figures/FigS1.tiff', 
          width = 7, height = 3.5, 
-         units = 'in', dpi = 600)
+         units = 'in', dpi = 600, compression = 'lzw')
   
   # Figure 1 ----
   # ..N excretion anova + figure ----
   
   # testing linear model with log-transformed data on raw column 
   # so that can revert back to response when doing emmeans
-  lm.Nxnorm <- lm(log(massnorm.N.excr) ~ Lake*Year, 
+  lmN <- lm(log10(massnorm.N.excr) ~ Lake*Year, 
      data = NPexcr %>% filter(Year != '2014'))
-  anova(lm.Nxnorm)
-  
-  X <- aov(Lake ~ Year, data = NPexcr)
-  summary(X)
+  anova(lmN)
+
   # ANCOVA
-  lm.Nx <- lm(log(N.excretion) ~ log(Mass)*Year, 
+  lm.Nx <- lm(log10(N.excretion.rate) ~ log(Mass)*Year, 
                   data = NPexcr %>% filter(Year != '2014'))
   Anova(lm.Nx, type = 'III')
   # which levels are different? Lakes from 2012 vs. 2015
   TukeyHSD(aov(lm.Nxnorm), ordered = F)
   
   # pairwise comparisons using emmeans
-  lm.Nxnorm_emmeans <- emmeans(lm.Nxnorm, ~ Lake|Year, type = 'response')
-  pairs(lm.Nxnorm_emmeans)
-  emmip(lm.Nx, Lake ~ Year)
-  lm.Nxnorm_emmeans
-  plot(lm.Nxnorm_emmeans, comparison = T)
+  emmN <- emmeans(lm.Nxnorm, ~ Lake:Year, type = 'response')
+  contrast(emmN, method = 'pairwise')
+  emmN <- emmeans(lm.Nxnorm, pairwise ~ Lake:Year, type = 'response')
+  emmN$contrasts %>%  summary(infer = T)
+  emmN$emmeans
+  pairs(emmN)
+  emmip(lmN, Lake ~ Year)
+  plot(emmN, comparison = T)
   
   # extracting effects from emmeans
   lm.Nxnorm_emmeansdf <- as.data.frame(summary(lm.Nxnorm_emmeans))
@@ -415,7 +384,7 @@
   eff_sizeNx <- eff_size(lm.Nxnorm_emmeans, sigma = sigma(lm.Nxnorm), 
                          edf = df.residual((lm.Nxnorm)))
   eff_sizeNx
-  eff_sizeNxdf <- as.data.frame(summary(eff_sizeNx))
+  eff_sizeNxdf <- tibble(summary(eff_sizeNx))
   eff_sizeNxdf2 <- eff_sizeNxdf %>% mutate(effect.size =
                                              ifelse(effect.size < 0,
                                                     effect.size*(-1), 0.8784323),
@@ -439,30 +408,13 @@
                 aes(x = Year, y = massnorm.N.excr),
                 size = 0.5, position = position_jitterdodge(jitter.width = 0.2),
                 show.legend = FALSE, alpha = 0.5) +
-    scale_x_discrete(labels = c('Pre-addition',  'Year 2')) +
+    scale_x_discrete(labels = exp_red.labels) +
     theme_classic(base_size = 10) +
-    theme(text = element_text(family = "Arial"),
-          axis.title.x = element_blank(),
-          # axis.text.x = element_blank(),
-          # axis.title.y = element_text(vjust = +1),
-          legend.margin = margin(.15, .15, .15, .15, 'cm'),
-          legend.key.height = unit(1, 'lines'), 
-          legend.key.width = unit(2, 'lines'),
-          legend.position = 'top') +
     scale_colour_manual(name = 'Lake',
-                      labels = c('AgNPs L222', 'Reference L239'),
-                      values = c("gray60", "black")) +
-    scale_y_continuous(name = 'Mass-specific \n N excretion (μg N/g/h)') +
-    # annotate("text", x = 0.5, y = 9500, label = 'A)', 
-    #          size = 9, fontface = 'bold') +
-    annotate("text", x = 0.87, y = 995, label = 'a', 
-             size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.12, y = 1095, label = 'a', 
-             size = 3, fontface = 'bold') +
-    annotate("text", x = 1.87, y = 3895, label = 'b', 
-             size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 2.12, y = 2695, label = 'b', 
-             size = 3, fontface = 'bold')
+                      labels = lake.labels,
+                      values = lake.colors) +
+    labs(x = '',
+         y = 'Mass-specific \n N excretion (μg N/g/h)') 
   Nexcr.p
   
   # .....effect sizes from 2012 2015 using model ----
@@ -480,7 +432,7 @@
           legend.key.width = unit(2, 'lines'),
           legend.position = 'right') +
     scale_y_continuous(name = 'Effect size') +
-    scale_x_discrete(labels = c('Pre-addition', 'Year 2')) 
+    scale_x_discrete(labels = c('Pre-addition', 'Year 2', 'Post-addition')) 
   eff_sizeN.p
   
   # ..P excretion anova + figure ----
@@ -527,7 +479,8 @@
                 aes(x = Year, y = massnorm.P.excr),
                 size = 0.5, position = position_jitterdodge(jitter.width = 0.2),
                 show.legend = FALSE, alpha = 0.5) +
-    scale_x_discrete(labels = c('Pre-addition', 'Year 1', 'Year 2')) +
+    scale_x_discrete(labels = c('Pre-addition', 'Year 1', 
+                                'Year 2', 'Post-addition')) +
     theme_classic(base_size = 10) +
     theme(text = element_text(family = "Arial"),
           axis.title.x = element_blank(),
@@ -538,19 +491,19 @@
     scale_y_continuous(name = 'Mass-specific \n P excretion (μg P/g/h)') +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("gray60", "black")) +
-    annotate("text", x = 0.87, y = 39, label = 'a', 
-             size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.12, y = 147, label = 'b', 
-             size = 3, fontface = 'bold') +
-    annotate("text", x = 1.87, y = 36, label = 'a', 
-             size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 2.12, y = 100, label = 'b', 
-             size = 3, fontface = 'bold') +
-    annotate("text", x = 2.87, y = 99, label = 'c', 
-             size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 3.12, y = 123, label = 'bc', 
-             size = 3, fontface = 'bold')
+                        values = c("gray60", "black")) #+
+    # annotate("text", x = 0.87, y = 39, label = 'a', 
+    #          size = 3, fontface = 'bold', color = 'gray60') +
+    # annotate("text", x = 1.12, y = 147, label = 'b', 
+    #          size = 3, fontface = 'bold') +
+    # annotate("text", x = 1.87, y = 36, label = 'a', 
+    #          size = 3, fontface = 'bold', color = 'gray60') +
+    # annotate("text", x = 2.12, y = 100, label = 'b', 
+    #          size = 3, fontface = 'bold') +
+    # annotate("text", x = 2.87, y = 99, label = 'c', 
+    #          size = 3, fontface = 'bold', color = 'gray60') +
+    # annotate("text", x = 3.12, y = 123, label = 'bc', 
+    #          size = 3, fontface = 'bold')
   Pexcr.p
   
   # .....effect sizes from 2012-2015 using model ----
@@ -568,7 +521,8 @@
           legend.key.width = unit(2, 'lines'),
           legend.position = 'right') +
     scale_y_continuous(name = 'Effect size') +
-    scale_x_discrete(labels = c('Pre-addition', 'Year 1', 'Year 2')) 
+    scale_x_discrete(labels = c('Pre-addition', 'Year 1', 
+                                'Year 2', 'Post-addition')) 
   eff_sizeP.p
   
   #..N:P excretion (molar) ----
@@ -615,18 +569,18 @@
           legend.position = 'right') +
     scale_fill_brewer(palette = "Accent") +
     scale_y_continuous(name = 'Mass-specific \n N:P excretion (molar)') +
-    scale_x_discrete(labels = c('Pre-addition', 'Year 2')) +
+    scale_x_discrete(labels = c('Pre-addition', 'Year 2', 'Post-addition')) +
     scale_colour_manual(name = 'Lake',
                         labels = c('AgNPs L222', 'Reference L239'),
-                        values = c("gray60", "black")) +
-    annotate("text", x = 0.87, y = 80, label = 'a', 
-             size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 1.12, y = 40, label = 'b', 
-             size = 3, fontface = 'bold') +
-    annotate("text", x = 1.87, y = 160, label = 'c', 
-             size = 3, fontface = 'bold', color = 'gray60') +
-    annotate("text", x = 2.12, y = 115, label = 'ac', 
-             size = 3, fontface = 'bold') 
+                        values = c("gray60", "black")) #+
+    # annotate("text", x = 0.87, y = 80, label = 'a', 
+    #          size = 3, fontface = 'bold', color = 'gray60') +
+    # annotate("text", x = 1.12, y = 40, label = 'b', 
+    #          size = 3, fontface = 'bold') +
+    # annotate("text", x = 1.87, y = 160, label = 'c', 
+    #          size = 3, fontface = 'bold', color = 'gray60') +
+    # annotate("text", x = 2.12, y = 115, label = 'ac', 
+    #          size = 3, fontface = 'bold') 
   NPexcr.p
   
   # .....effect sizes from 2012 2015 using model ----
@@ -645,7 +599,7 @@
           legend.key.width = unit(2, 'lines'),
           legend.position = 'right') +
     scale_y_continuous(name = 'Effect size') +
-    scale_x_discrete(labels = c('Pre-addition', 'Year 2')) 
+    scale_x_discrete(labels = c('Pre-addition', 'Year 2', 'Post-addition')) 
   eff_sizeNP.p
   
   # combine all graphs into figure 1 ----
@@ -655,9 +609,17 @@
             labels = c("(a)", "(b)", "(c)", "(d)","(e)", "(f)"),
             font.label = list(size = 10), label.x = 0.2, label.y = 1,
             legend = 'top', common.legend = T, align = 'v')
-  ggsave('figures/final-figures/Fig1.tiff', 
+  ggsave('figures/final-figures/Fig1.png', 
          width = 7, height = 7, 
          units = 'in', dpi = 600)
+  
+  # C excretion ----
+  aov.C <- aov(massnorm.C.excr ~ Lake*Year, data = NPexcr)
+  Anova(aov.C)
+  ggplot(NPexcr %>% filter(Year %in% c('2015', '2022')), 
+         aes(x = Year, y = log10(massnorm.C.excr), 
+             group = Lake, colour = Lake)) +
+    geom_boxplot()
 
   # Figure 2 ----
   # ..Tag excretion t-test + figure ----
@@ -774,7 +736,7 @@
       P.excretion.m = rep(VM.m_sub$P.excretion.m, each = 2500),
       P.excretion.m.se = rep(VM.m_sub$P.excretion.m.se, each = 2500),
       Mass = rep(VM.m_sub$Mass, each = 2500),
-      iter = rep(1:2500, each = 120)
+      iter = rep(1:2500, each = 131)
     ) 
   
   # FishStoichModel ----
