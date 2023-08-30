@@ -1,6 +1,6 @@
-  # *** Silver nanoparticles addition promotes phosphorus and silver excretion by 
-  # yellow perch (Perca flavescens) in a boreal lake ***
-  # this code was developped by S. Klemet-N'Guessan in 2020 and 2021
+  # *** Whole-lake silver nanoparticles addition promotes phosphorus and 
+  # silver excretion by yellow perch (Perca flavescens)  ***
+  # this code was developped by S. Klemet-N'Guessan in 2020-2023
   
   # load libraries ----
   
@@ -32,12 +32,12 @@
            FishID = 'Fish ID') %>% 
     mutate(
       Total.length.cm = `Total length (mm)`/10,
+      Fork.length = `Fork length (mm)`,
       Lake = as.factor(Lake),
       Year = as.factor(Year),
       Period = factor(ifelse(Year == '2012', 'Before', 'After')),
       SiteClass = factor(ifelse(Lake == '239','Control', 'Impact')),
-      Period = fct_relevel(Period, 'After', after = Inf)) %>%
-    filter(!Mass == 3.75)
+      Period = fct_relevel(Period, 'After', after = Inf)) 
   
   str(NPexcr)
   
@@ -55,12 +55,6 @@
       Year = factor(2022),
       Lake = if_else(Lake == 'L239', '239', '222')
     ) %>% 
-    # group_by(Lake) %>% 
-    # dplyr::mutate(
-    #   Sample.type = paste('F', seq(1,15|20)),
-    #   FishID = paste('22', Lake, Sample.type)
-    # ) %>% 
-    # ungroup()
     dplyr::filter(Mass <= 2.25) %>% 
     group_by(Lake) %>% 
     filter(case_when(
@@ -84,13 +78,16 @@
            massnorm.NAg.excr = massnorm.N.excr/massnorm.Tag.excr/(14/107),
            massnorm.PAg.excr = massnorm.P.excr/massnorm.Tag.excr/(12/107))
   
-  # ..summary statistics info for paper methods & discussion ----
+  # ..summary statistics ----
   
   NPexcr.ss1 <- NPexcr %>% group_by(Lake, Year) %>%
-    select(c('Mass', 'massnorm.N.excr', 'massnorm.P.excr')) %>% 
+    select(c('Mass', 'Fork.length', 'massnorm.N.excr', 'massnorm.P.excr',
+             'massnorm.Tag.excr')) %>% 
     describe_distribution() 
+  NPexcr.ss1
   
-  NPexcr.ss <- NPexcr %>% group_by(Lake, Year) %>%
-    select(c('Mass', 'massnorm.N.excr', 'massnorm.P.excr')) %>% 
+  NPexcr.ss2 <- NPexcr %>% 
+    select(c('Mass', 'massnorm.N.excr', 'massnorm.P.excr', 'massnorm.Tag.excr')) %>% 
     describe_distribution() 
+  NPexcr.ss2
   

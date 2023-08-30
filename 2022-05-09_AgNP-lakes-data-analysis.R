@@ -1,7 +1,6 @@
-  # *** Silver nanoparticles addition promotes phosphorus and silver excretion by 
-  # yellow perch (Perca flavescens) in a boreal lake ***
-  # this code was developped by S. Klemet-N'Guessan in 2020 and 2021
-
+  # *** Whole-lake silver nanoparticles addition promotes phosphorus and 
+  # silver excretion by yellow perch (Perca flavescens)  ***
+  # this code was developped by S. Klemet-N'Guessan  in 2020-2023
   # load libraries ----
   
   library(tidyverse)
@@ -361,7 +360,7 @@
   anova(lmN)
 
   # ANCOVA
-  lm.Nx <- lm(log10(N.excretion.rate) ~ log(Mass)*Year, 
+  lm.Nx <- lm(log10(N.excretion.rate) ~ log10(Mass)*Lake, 
                   data = NPexcr %>% filter(Year != '2014'))
   Anova(lm.Nx, type = 'III')
   # which levels are different? Lakes from 2012 vs. 2015
@@ -444,7 +443,7 @@
   
   
   # ANCOVA
-  lm.Px <- lm(log(P.excretion) ~ log(Mass)*Lake, 
+  lm.Px <- lm(log10(P.excretion.rate) ~ log10(Mass)*Year, 
               data = NPexcr)
   Anova(lm.Px, type = 'III')
   summary(lm.Px)
@@ -633,7 +632,7 @@
   w.Tag
   
   # N:Ag
-  hist(NPexcr$massnorm.NAg.excr)
+  hist(log10(NPexcr$massnorm.NAg.excr))
   var.test(massnorm.NAg.excr ~ Year, NPexcr, alternative = 'two.sided')
   w.NAg <- wilcox.test(massnorm.NAg.excr ~ Year, NPexcr)
   w.NAg
