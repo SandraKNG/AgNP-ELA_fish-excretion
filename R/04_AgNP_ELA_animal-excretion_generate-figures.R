@@ -1,6 +1,6 @@
-  # *** Silver nanoparticles addition promotes phosphorus and silver excretion by 
-  # yellow perch (Perca flavescens) in a boreal lake ***
-  # this code was developped by S. Klemet-N'Guessan in 2020 and 2021
+  # *** Whole-lake silver nanoparticles addition promotes phosphorus and 
+  # silver excretion by yellow perch (Perca flavescens)  ***
+  # this code was developped by S. Klemet-N'Guessan in 2020-2023
   
   # load libraries ----
   library(ggpubr) # to add multiple graphs on the same page + stats
@@ -13,13 +13,15 @@
   library(scales) # for log scale formatting
   
   # set up plot parameters ----
-  lake.labels <- c('AgNPs L222', 'Reference L239')
+  lake.labels <- c('Experimental', 'Reference')
   exp.labels <- c('Pre-addition', 'Year 1', 'Year 2', 'Post-addition')
   exp_red.labels <- c('Pre-addition', 'Year 2', 'Post-addition')
   lake.colors <- c("gray60", "black")
   point.size = 1.5
   point.size2 = .5
   point.alpha = .5
+  CI.alpha = .25
+  line.size = .75
   
   get_legend <- function(a.gplot){
     tmp <- ggplot_gtable(ggplot_build(a.gplot))
@@ -48,30 +50,57 @@
       theme_classic(base_size = 10) 
   }
   
-  plot_boxplot <- function(y){
+  plot_wilcox <- function(y){
     ggplot(excr.Tag, 
            aes(x = Year, y = y)) +
-      geom_boxplot(outlier.shape = NA, size = 0.5) +
-      geom_jitter(size = point.size, position = position_jitter(0.2),alpha = 0.5) +
-      stat_compare_means(label.x = 0.9, label = 'p.format', size = 3) +
+      geom_boxplot(outlier.shape = NA, size = 0.5, colour = "gray60") +
+      geom_jitter(size = point.size, position = position_jitter(0.2),
+                  alpha = 0.5, colour = "gray60") +
+      stat_compare_means(label.x = 0.9, label = 'p.format', 
+                         size = 3) +
       theme_classic(base_size = 10) +
-      labs(x = '', 
-           y = 'Mass-specific \n Ag excretion (μg Ag/g/h)') +
       scale_x_discrete(labels = c('Year 1', 'Year 2')) 
   }
   
-  plot_mod <- function(y){
+  plot_mS <- function(y){
     ggplot(group_by(iter_yp, iter), aes(x = dry.mass, y = y)) +
-      stat_lineribbon(alpha = 0.8, linewidth = 0.6, show.legend = F) +
+      stat_lineribbon(alpha = 0.8,
+                      linewidth = line.size,
+                      show.legend = F) +
       scale_fill_brewer() +
-      theme_classic(base_size = 8) +
+      theme_classic(base_size = 10) +
       scale_colour_manual(name = 'Lake',
                           labels = lake.labels,
                           values = lake.colors) +
-      scale_shape_manual(labels = exp.labels,
-                         values = c(16, 8, 13, 17), na.translate = F) +
-    scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
-                  labels = trans_format("log10", math_format(10^.x)))
+      scale_shape_manual(
+        labels = exp.labels,
+        values = c(16, 8, 13, 17),
+        na.translate = F
+      ) +
+      # scale_y_log10(
+      #   breaks = trans_breaks("log10", function(x)
+      #     10 ^ x),
+      #   labels = trans_format("log10", math_format(10 ^ .x))
+      #) +
+      coord_trans(y = 'log10') +
+      theme(axis.text.x = element_blank())
+  }
+  
+  plot_mVM <- function(y, y_se){
+    ggplot(group_by(iter_yp_VM, iter), 
+           aes(x = Mass, y = y)) +
+      geom_line(size = line.size) +
+      geom_ribbon(aes(ymin = y - y_se,
+                      ymax = y + y_se), alpha = .1) +
+      theme_classic(base_size = 10) +
+      scale_colour_manual(name = 'Lake',
+                          labels = lake.labels,
+                          values = lake.colors) +
+      scale_shape_manual(labels = exp_red.labels,
+                         values = c(16, 8, 13, 17), na.translate = F) #+
+      # scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+      #               labels = trans_format("log10", math_format(10^.x))) 
+      #coord_trans(y = 'log10')
   }
   
   # Figure 1 ----
@@ -102,12 +131,9 @@
          y = 'Mass-specific \n P excretion (μg P/g/h)') 
   Pexcr.p
   
-  eff_sizeP.p <-  ggplot(pwcP[["effect_sizes"]], aes(x = Year, y = exp(-estimate))) +
-    geom_pointrange(aes(ymax = exp(-lower.CL), ymin = exp(-upper.CL)), lwd = 0.4) +
-    theme_classic(base_size = 10) +
+  eff_sizeP.p <- plot_effsize(pwcP[["effect_sizes"]]) +
     labs(x = '',
-         y = 'Effect size') +
-    scale_x_discrete(labels = exp.labels) 
+         y = 'Effect size') 
   effsizeP.p
   
   # N:P excretion
@@ -138,13 +164,21 @@
   
   # Figure 2 ----
   # Tag
-  TAgexcr.p <- plot_boxplot(excr.Tag$massnorm.Tag.excr)
+  TAgexcr.p <- plot_wilcox(excr.Tag$massnorm.Tag.excr) +
+  labs(x = '', 
+       y = 'Mass-specific \n Ag excretion (μg Ag/g/h)') +
+    theme(axis.text.x = element_blank())
   TAgexcr.p
   # N:Ag
-  NAgexcr.p <- plot_boxplot(excr.Tag$massnorm.NAg.excr)
+  NAgexcr.p <- plot_wilcox(excr.Tag$massnorm.NAg.excr)+
+    labs(x = '', 
+         y = 'Mass-specific \n N:Ag excretion (molar)')+
+    theme(axis.text.x = element_blank())
   NAgexcr.p
   # P:Ag
-  PAgexcr.p <- plot_boxplot(excr.Tag$massnorm.PAg.excr)
+  PAgexcr.p <- plot_wilcox(excr.Tag$massnorm.PAg.excr) +
+    labs(x = '', 
+         y = 'Mass-specific \n P:Ag excretion (molar)')
   PAgexcr.p
   
   # combine plots ----
@@ -159,7 +193,7 @@
   # ..Figure 3 ----
   # Schiettekate et al model ----
   # N excretion 
-  Nexcr_mS.p <- plot_mod(iter_yp$N.excretion.mod) +
+  Nexcr_mS.p <- plot_mS(iter_yp$N.excretion.mod) +
     geom_point(aes(x = Mass, y = N.excretion.rate, color = Lake, shape = Year), 
                data = NPexcr %>%  filter(Year != '2014'),
                size = point.size, alpha = point.alpha + .2) +
@@ -169,54 +203,35 @@
   Nexcr_mS.p
   
   # P excretion
-  Pexcr_mS.p <- plot_mod(iter_yp$P.excretion.mod) +
+  Pexcr_mS.p <- plot_mS(iter_yp$P.excretion.mod) +
     geom_point(aes(x = Mass, y = P.excretion.rate, color = Lake, shape = Year), 
                data = NPexcr,
                size = point.size, alpha = point.alpha + .2) +
-    labs(x = "", y = "P excretion (μg P/ind/h)") 
+     labs(x = "", y = "P excretion (μg P/ind/h)") 
   Pexcr_mS.p
   
   # V&M model ----
   # N excretion
-  Nexcr_mVM.p <- ggplot(group_by(iter_yp_VM, iter), 
-                        aes(x = Mass, y = N.excretion.m)) +
-    geom_line() +
-    geom_ribbon(aes(ymin = N.excretion.m - N.excretion.m.se,
-                    ymax = N.excretion.m + N.excretion.m.se), alpha = .1) +
-    theme_classic(base_size = 8) +
+  Nexcr_mVM.p <- plot_mVM(iter_yp_VM$N.excretion.m, 
+                          iter_yp_VM$N.excretion.m.se) +
     geom_point(aes(x = Mass, y = N.excretion.rate, color = Lake, shape = Year), 
                data = NPexcr %>%  filter(Year != '2014'),
                size = point.size, alpha = point.alpha + .2) +
+    scale_shape_manual(labels = exp_red.labels,
+                       values = c(16, 8, 17), na.translate = F) +
     labs(x = "Dry mass (g)", 
-         y = "N excretion (μg N/ind/h)") +
-      scale_colour_manual(name = 'Lake',
-                          labels = lake.labels,
-                          values = lake.colors) +
-      scale_shape_manual(labels = exp_red.labels,
-                         values = c(16, 8, 17), na.translate = F) +
-  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
-                labels = trans_format("log10", math_format(10^.x)))
+         y = "N excretion (μg N/ind/h)") 
   Nexcr_mVM.p
   
   # P excretion
-  Pexcr_mVM.p <- ggplot(group_by(iter_yp_VM, iter), 
-                        aes(x = Mass, y = P.excretion.m)) +
-    geom_line() +
-    geom_ribbon(aes(ymin = P.excretion.m - P.excretion.m.se,
-                    ymax = P.excretion.m + P.excretion.m.se), alpha = .1) +
-    theme_classic(base_size = 8) +
+  Pexcr_mVM.p <- plot_mVM(iter_yp_VM$P.excretion.m, 
+                          iter_yp_VM$P.excretion.m.se) +
     geom_point(aes(x = Mass, y = P.excretion.rate, color = Lake, shape = Year), 
-               data = NPexcr %>%  filter(Year != '2014'),
+               data = NPexcr,
                size = point.size, alpha = point.alpha + .2) +
     labs(x = "Dry mass (g)", 
          y = "P excretion (μg N/ind/h)") +
-    scale_colour_manual(name = 'Lake',
-                        labels = lake.labels,
-                        values = lake.colors) +
-    scale_shape_manual(labels = exp_red.labels,
-                       values = c(16, 8, 17), na.translate = F) +
-    scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
-                  labels = trans_format("log10", math_format(10^.x)))
+    coord_trans(y = 'log10', ylim = c(0, 700))
   Pexcr_mVM.p
   
   # combine plots ----
@@ -225,7 +240,7 @@
             nrow = 2, ncol = 2,
             legend = 'right', common.legend = F, align = 'hv', 
             labels = c('(a)', '(b)', '(c)', '(d)'), 
-            label.x = 0.15, label.y = 1, font.label = list(size = 8), 
+            label.x = 0.17, label.y = 1, font.label = list(size = 8), 
             legend.grob = fig3.legend)
   ggsave('figures/final-figures/Fig3.tiff', 
          width = 7, height =  4, 
@@ -294,7 +309,7 @@
          width = 7, height = 4, 
          units = 'in', dpi = 600)
   
-  # Figure S1
+  # Figure S1 ----
   Mexcr.p <- ggplot(NPexcr, 
                    aes(x = Year, y = Mass, color = Lake)) +
     geom_jitter(size = 1.5, aes(x = Year, y = Mass), 
@@ -314,21 +329,7 @@
          width = 7, height = 3.5, 
          units = 'in', dpi = 600, compression = 'lzw')
   
-  # Figure S2
-  Cing_mod.p <- 
-    ggplot(group_by(iter_yp, iter), aes(x = dry.mass, y = C.ingestion.mod)) +
-    stat_lineribbon(alpha = 0.8, show.legend = T) +
-    scale_fill_brewer(name = 'Confidence Interval',
-                      labels = c('95%', '80%', '50%')) +
-    labs(x = "Dry mass (g)", y = "C ingestion rate (μg C/ind/h)") +
-    theme_classic(base_size = 10) 
-  Cing_mod.p
-  
-  ggsave('figures/final-figures/FigS3.tiff', 
-         width = 7, height = 3.5, 
-         units = 'in', dpi = 600)
-  
-  # Figure S3 ----
+  # Figure S2 ----
   lim_mod.p <- 
     ggplot(limitation, aes(x = dry.mass, y = prop_lim)) +
     geom_point(aes(x = dry.mass, y = prop_lim, color = nutrient), size = 1.5) +
@@ -342,4 +343,19 @@
   ggsave('figures/final-figures/FigS2.tiff', 
          width = 7, height = 4, 
          units = 'in', dpi = 300, compression = 'lzw')
+  
+  
+  # Figure S3 ----
+  Cing_mod.p <- 
+    ggplot(group_by(iter_yp, iter), aes(x = dry.mass, y = C.ingestion.mod)) +
+    stat_lineribbon(alpha = 0.8, show.legend = T) +
+    scale_fill_brewer(name = 'Confidence Interval',
+                      labels = c('95%', '80%', '50%')) +
+    labs(x = "Dry mass (g)", y = "C ingestion rate (μg C/ind/h)") +
+    theme_classic(base_size = 10) 
+  Cing_mod.p
+  
+  ggsave('figures/final-figures/FigS3.tiff', 
+         width = 7, height = 3.5, 
+         units = 'in', dpi = 600)
   
