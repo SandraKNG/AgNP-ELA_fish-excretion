@@ -23,8 +23,8 @@
           legend.position = 'right') 
   # very bad relationship, almost flat for P excretion +
   # not convinced it is actually linear for N excretion
-  # probably due to the low variance in mass among individuals (from 0.4 to 8g) 
-  # for the entire dataset
+  # probably due to the high variance in mass among individuals (from 0.4 to 8g) 
+  # and small fish size 
   
   # get coeff of variation log10 N excretion vs. log10 mass
   b.N222 <- lm(Log10.N.excretion ~ Log10.mass, 
