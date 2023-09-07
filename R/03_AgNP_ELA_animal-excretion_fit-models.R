@@ -6,14 +6,6 @@
   library(emmeans) # post-hoc pairwise comparisons using lm, glm, levDev models
   library(car)
   library(performance)
-  library(report)
-  
-  # define function to calculate fitted regression coefficients
-  # coef_function <- function(formula, data, indices) {
-  #   d <- data[indices,] # allows boot to select sample
-  #   fit <- lm(formula, data = d) # fit regression model
-  #   return(coef(fit)) # return coefficient estimates of model
-  # }
   
   # LM & emmeans ----
   emm <- function(lm){
@@ -47,39 +39,55 @@
   check_model(lmMass)
   anova(lmMass)
   summary(lmMass)
-  report(lmMass)
   pwcMass <- emm(lmMass)
   
   # N excretion
   lmN <- lm(log10(massnorm.N.excr) ~ Lake*Year, 
             data = NPexcr %>% filter(Year != '2014'))
   anova(lmN)
+  summary(lmN)
   pwcN <- emm(lmN)
   
   # P excretion
   lmP <- lm(log10(massnorm.P.excr) ~ Lake*Year, 
             data = NPexcr)
   anova(lmP)
+  summary(lmP)
   pwcP <- emm(lmP)
   
   # P excretion
   lmNP <- lm(log10(massnorm.NP.excr) ~ Lake*Year, 
             data = NPexcr %>% filter(Year != '2014'))
-  anova(lmNP)
+  P <- anova(lmNP)
+  summary(lmNP)
   pwcNP <- emm(lmNP)
+  
+  # make lm table based on all model ----
+  lm_models <- list(
+    "Mass" = lmMass,
+    "Mass-normalized N excretion" = lmN,
+    "Mass-normalized P excretion" = lmP,
+    "Mass-normalized N:P excretion" = lmNP
+  )
+  combined_anova <- bind_rows(lapply(names(lm_models), function(model_name) {
+    model <- lm_models[[model_name]]
+    anova_result <- rownames_to_column(anova(model), 
+                                       var = "Predictors") %>% as_tibble
+    anova_result$groupname <- model_name
+    return(anova_result)
+  }))
   
   # make contrast table based on all models
   contrasts <- bind_rows(pwcMass[['contrasts']],
                          pwcN[['contrasts']], pwcP[['contrasts']], 
                          pwcNP[['contrasts']], .id = 'column_label')
+  
   contrasts <- contrasts %>% 
     mutate(test = if_else(column_label == 1,'Mass', 
-                          if_else(column_label == 2, 'massnorm.N.excr',
-                                  if_else(column_label == 3, 'massnorm.P.excr', 
-                                          'massnorm.NP.excr'))))
-  contrasts
-  
-  write.csv(contrasts, 'output/emmeans_contrasts.csv')
+                          if_else(column_label == 2,  "Mass-normalized N excretion",
+                                  if_else(column_label == 3,  "Mass-normalized P excretion", 
+                                          "Mass-normalized N:P excretion")))) %>% 
+    select(-column_label)
   
   # wilcox test ----
   excr.Tag <- NPexcr %>% 

@@ -3,6 +3,7 @@
   # this code was developped by S. Klemet-N'Guessan in 2020-2023
   
   # load libraries ----
+  library(gt) # to make tables
   library(ggpubr) # to add multiple graphs on the same page + stats
   library(fishflux) # to do fish stoich model
   library(parallel) # for mcmapply function for sensitivity analysis
@@ -11,6 +12,68 @@
   library(patchwork) # to align multiple plots
   library(cowplot) # to align multiple plots
   library(scales) # for log scale formatting
+  
+  # make tables 
+  # Table S1 ----
+  combined_anova %>%  
+    gt(groupname_col = "groupname") %>% 
+    cols_label(
+      Predictors = "",
+      Df = md("**df**"),
+      'Sum Sq' = md("**SS**"),
+      'Mean Sq' = md("**MS**"),
+      'F value' = md("**F**"),
+      'Pr(>F)' = md("***p***")
+    ) %>% 
+    cols_align(
+      align = "center",
+      columns = c(Df, 'Sum Sq', 'Mean Sq', 'F value', 'Pr(>F)')
+    ) %>% 
+    fmt_number(
+      columns = c('Sum Sq', 'Mean Sq', 'F value'),
+      decimals = 3
+    ) %>% 
+    fmt_number(
+      columns = c('Pr(>F)'),
+      decimals = 2
+     ) %>% 
+  tab_style(
+    style = cell_borders(
+      sides = c("top", "bottom"),
+      style = 'hidden'
+    ),
+    locations = cells_body(
+      columns = everything(),
+      rows = everything()
+    )
+  ) %>% 
+  gtsave("tables_figures/final-tables_figures/tableS1.rtf")
+  
+  # Table S2 ----
+  contrasts %>% 
+    gt(groupname_col = "test") %>% 
+    fmt_number(
+      columns = everything(),
+      decimals = 3
+    ) %>% 
+    cols_align(
+      align = "center"
+    ) %>% 
+    cols_align(
+      align = "left",
+      columns = contrast
+    ) %>% 
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_column_labels()
+    ) %>% 
+    cols_label(
+      lower.CL = 'lower CI',
+      upper.CL = "upper CI",
+      t.ratio = "t ratio",
+      p.value = md("*p*")
+    ) %>% 
+    gtsave("tables_figures/final-tables_figures/tableS2.rtf")
   
   # set up plot parameters ----
   lake.labels <- c('Experimental', 'Reference')
@@ -158,7 +221,7 @@
             labels = c("(a)", "(b)", "(c)", "(d)","(e)", "(f)"),
             font.label = list(size = 10), label.x = 0.2, label.y = 1,
             legend = 'top', common.legend = T, align = 'v')
-  ggsave('figures/final-figures/Fig1.tiff', 
+  ggsave('tables_figures/final-tables_figures/Fig1.tiff', 
          width = 7, height = 7, 
          units = 'in', dpi = 600, compression = 'lzw')
   
@@ -186,7 +249,7 @@
             labels = c("(a)", "(b)", "(c)"), 
             font.label = list(size = 10), label.x = 0.2, label.y = 1,
             legend = 'none', common.legend = T, align = 'v')
-  ggsave('figures/final-figures/Fig2.tiff', 
+  ggsave('tables_figures/final-tables_figures/Fig2.tiff', 
          width = 3.33, height = 7, 
          units = 'in', dpi = 300)
   
@@ -242,7 +305,7 @@
             labels = c('(a)', '(b)', '(c)', '(d)'), 
             label.x = 0.17, label.y = 1, font.label = list(size = 8), 
             legend.grob = fig3.legend)
-  ggsave('figures/final-figures/Fig3.tiff', 
+  ggsave('tables_figures/final-tables_figures/Fig3.tiff', 
          width = 7, height =  4, 
          units = 'in', dpi = 600, compression = 'lzw')
   
@@ -305,7 +368,7 @@
             ncol = 2, nrow = 2, align = 'hv', axis = "r", 
             labels = c("(a)", "(b)", "(c)", "(d)"),
             label_size = 8)
-  ggsave('figures/final-figures/Fig4.tiff', 
+  ggsave('tables_figures/final-tables_figures/Fig4.tiff', 
          width = 7, height = 4, 
          units = 'in', dpi = 600)
   
@@ -325,7 +388,7 @@
                         values = lake.colors)
   Mexcr.p
   
-  ggsave('figures/final-figures/FigS1.tiff', 
+  ggsave('tables_figures/final-tables_figures/FigS1.tiff', 
          width = 7, height = 3.5, 
          units = 'in', dpi = 600, compression = 'lzw')
   
@@ -340,7 +403,7 @@
     scale_color_grey(start = 0.8, end = 0.1, labels = c("C", "N", "P")) 
   lim_mod.p
   
-  ggsave('figures/final-figures/FigS2.tiff', 
+  ggsave('tables_figures/final-tables_figures/FigS2.tiff', 
          width = 7, height = 4, 
          units = 'in', dpi = 300, compression = 'lzw')
   
@@ -355,7 +418,7 @@
     theme_classic(base_size = 10) 
   Cing_mod.p
   
-  ggsave('figures/final-figures/FigS3.tiff', 
+  ggsave('tables_figures/final-tables_figures/FigS3.tiff', 
          width = 7, height = 3.5, 
          units = 'in', dpi = 600)
   

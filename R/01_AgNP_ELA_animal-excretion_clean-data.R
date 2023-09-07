@@ -3,8 +3,8 @@
   # this code was developped by S. Klemet-N'Guessan in 2020-2023
   
   # load libraries ----
-  
   library(tidyverse)
+  library(datawizard) # to do summary statistics
   
   # read silver nanoparticles (NP) dataset ----
   NPer <- read_csv('data/2020-04-21_AgNP-ELA-lakes_fish-excretion.csv')
