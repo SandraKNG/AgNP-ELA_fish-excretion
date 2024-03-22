@@ -3,9 +3,13 @@
   # this code was developped by S. Klemet-N'Guessan in 2020-2023
   
   # load libraries ----
+  library(lmerTest) # for lmer
+  library(fishflux)
   library(emmeans) # post-hoc pairwise comparisons using lm, glm, levDev models
   library(car)
   library(performance)
+  # library(pwr) # for power analysis for MDD
+  # library(arm)
   
   # LM & emmeans ----
   emm <- function(lm){
@@ -33,32 +37,118 @@
     return(result_list)
   }
   
+  
   # Mass
   hist(NPexcr$Mass)
-  lmMass <- lm(log10(Mass) ~ Lake*Year, data = NPexcr)
+  lmMass <- lm(log(Mass) ~ Lake*Year, data = NPexcr)
   check_model(lmMass)
   anova(lmMass)
   summary(lmMass)
   pwcMass <- emm(lmMass)
   
   # N excretion
-  lmN <- lm(log10(massnorm.N.excr) ~ Lake*Year, 
-            data = NPexcr %>% filter(Year != '2014'))
-  anova(lmN)
+  # Treatment is the fixed effect of interest.
+  # (1 | Lake) specifies random intercepts for each lake, allowing for individual variation in intercepts.
+  # (1 | Lake:Year) specifies random intercepts for the interaction between Lake and Year, allowing for variation in intercepts across different combinations of Lake and Year.
+  # This model accounts for repeated measures within each lake and allows for individual variation between lakes as well as variation in the effect of treatment across different lakes and years.
+  NPexcr.N <- NPexcr %>% filter(Year != '2014')
+  log.massnorm.N.excr <- log10(NPexcr$massnorm.N.excr)
+  lmN <- lm(log(massnorm.N.excr) ~ Lake * Year, data = NPexcr.N)
+  lmN <- lmer(log(massnorm.N.excr) ~ SiteClass * Period + (1 | Lake),
+            data = NPexcr.N)
+  # lmN <- lmer(log10(massnorm.N.excr) ~ Treatment * Year + (1 + Year | Lake), 
+  #             data = NPexcr.N)
+  anova_N <- anova(lmN)
   summary(lmN)
+  # m2 <- emmeans(lmN, specs = "Treatment", type = 'response')
+  # eff_size_df <- summary(eff_size(m2, sigma = sigma(lmN), 
+  #                                 edf = df.residual(lmN))) %>% 
+  #   as_tibble()
+  
+  NPexcr_c <- NPexcr %>%  
+    filter(Lake == '239', Year == 2015) 
+  transc <- NPexcr_c$massnorm.N.excr
+  NPexcr_t <- NPexcr %>%  
+    filter(Lake == '222', Year == 2015) 
+  transt <- NPexcr_t$massnorm.N.excr
+  
+  # attempt 1 ----
+  # Function to calculate MDD for ANOVA
+  calculate_MDD_ANOVA <- function(anova_result, alpha = 0.05) {
+    # Extract degrees of freedom for error and total
+    df_error <- anova_result$"Df"[2]  # Degrees of freedom for error
+    df_total <- sum(anova_result$"Df")  # Total degrees of freedom
+    
+    # Calculate the critical F-value
+    critical_f_value <- qf(1 - alpha, df_error, df_total - df_error)
+    
+    # Calculate the MDD effect size
+    num_groups <- 2 * 3  # Assuming 2 Lake groups and 3 Year groups
+    mdd_effect_size <- sqrt(critical_f_value / num_groups)
+    
+    return(mdd_effect_size)
+  }
+  
+  # Calculate MDD for the provided ANOVA result
+  log_mdd_effect_size <- calculate_MDD_ANOVA(anova_N)
+  # Back-transform MDD effect size
+  mdd_effect_size <- 10^log_mdd_effect_size
+  
+  # Calculate the upper CI for ANOVA
+  upper_CI_ANOVA <- mean(transc) - mean(transt) +
+    qf(0.95, df_error, df_total - df_error) *
+    sqrt(var(c(transc - mean(transc), transt - mean(transt)))) *
+    sqrt(2 / N)
+  
+  
+  # attempt 2 ----
+  # Define parameters
+  alpha <- 0.05  # Significance level
+  power <- 0.80  # Desired power
+  effect_size <- 2  # Desired effect size (Cohen's d)
+  
+  # Extract MSE
+  mse <- tail(anova_N$"Mean Sq", 1)
+  
+  # Degrees of freedom
+  # Find the row corresponding to the interaction term(s)
+  interaction_row <- grep("\\*", rownames(anova_N))
+  # Degrees of freedom associated with the interaction term(s)
+  df_interaction <- anova_N[interaction_row, "Df"] 
+  df_residual <- lmN$df.residual
+  
+  # Calculate critical F-value
+  critical_f_value <- qf(1 - alpha, df_interaction, df_residual)
+  
+  # Sample sizes (if different by group)
+  sample_sizes <- c(20, 15, 18, 7, 8, 4)  # Sample sizes per group or combination of levels
+  
+  # Calculate MDD
+  # The MDD represents the smallest difference between group means that you can 
+  # detect with the specified sample size, power, and significance level.
+  mdd_log <- sqrt((2 * (1 / mean(sample_sizes)) * df_residual) / critical_f_value)
+  mdd <- 10^mdd_log
+  mdd
+
+  
   pwcN <- emm(lmN)
   
   # P excretion
-  lmP <- lm(log10(massnorm.P.excr) ~ Lake*Year, 
+  lmP <- lmer(log10(massnorm.P.excr) ~ Treatment + (1 | Lake) + (1 | Lake:Year), 
             data = NPexcr)
-  anova(lmP)
-  summary(lmP)
+  lmPalt <- lmer(log(massnorm.P.excr) ~ Period * SiteClass + (1 |Lake), data = NPexcr)
+  lmP <- lm(log(massnorm.P.excr) ~ Lake*Year, 
+             data = NPexcr)
+  
+  anova(lmP, ddf="Kenward-Roger")
+  anova(lmPalt, ddf="Kenward-Roger")
+  summary(lmPalt)
   pwcP <- emm(lmP)
   
-  # P excretion
-  lmNP <- lm(log10(massnorm.NP.excr) ~ Lake*Year, 
+  # N:P excretion
+  lmNP <- lm(log(massnorm.NP.excr) ~ Lake*Year, 
             data = NPexcr %>% filter(Year != '2014'))
-  P <- anova(lmNP)
+  nova(lmNP)
   summary(lmNP)
   pwcNP <- emm(lmNP)
   
@@ -151,7 +241,6 @@
   ) 
   
   # ..Schiettekatte FishStoich model ----
-  
   # Yellow perch
   total.length <- exp((log(NPexcr$Wet.mass[!is.na(NPexcr$Wet.mass)]/
                              parammod$lwa_m)/parammod$lwb_m))

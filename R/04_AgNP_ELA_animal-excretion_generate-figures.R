@@ -12,7 +12,6 @@
   library(patchwork) # to align multiple plots
   library(cowplot) # to align multiple plots
   library(scales) # for log scale formatting
-  
   # make tables 
   # Table S1 ----
   combined_anova %>%  
@@ -94,8 +93,7 @@
     }
   
   plot_emm <- function(df) {
-    ggplot(df, 
-                      aes(x = Year, y = response, color = Lake, group = Lake)) +
+    ggplot(df, aes(x = Year, y = response, color = Lake, group = Lake)) +
       geom_point(size = point.size, position = position_dodge(0.5)) +
       scale_x_discrete(labels = exp_red.labels) +
       geom_errorbar(aes(ymax = lower.CL, ymin = upper.CL), 
@@ -109,6 +107,8 @@
   plot_effsize <- function(df) {
     ggplot(df, aes(x = Year, y = exp(estimate))) +
     geom_pointrange(aes(ymax = exp(lower.CL), ymin = exp(upper.CL)), lwd = 0.4) +
+      labs(x = '',
+           y = 'Effect size') +
       scale_x_discrete(labels = exp_red.labels) +
       theme_classic(base_size = 10) 
   }
@@ -125,7 +125,7 @@
       scale_x_discrete(labels = c('Year 1', 'Year 2')) 
   }
   
-  plot_mS <- function(y){
+  plot_mS <- function(y, lim1, lim2){
     ggplot(group_by(iter_yp, iter), aes(x = dry.mass, y = y)) +
       stat_lineribbon(alpha = 0.8,
                       linewidth = line.size,
@@ -140,16 +140,17 @@
         values = c(16, 8, 13, 17),
         na.translate = F
       ) +
-      # scale_y_log10(
-      #   breaks = trans_breaks("log10", function(x)
-      #     10 ^ x),
-      #   labels = trans_format("log10", math_format(10 ^ .x))
-      #) +
-      coord_trans(y = 'log10') +
-      theme(axis.text.x = element_blank())
+      scale_y_log10(
+        breaks = trans_breaks("log10", function(x)
+          10 ^ x),
+        labels = trans_format("log10", math_format(10 ^ .x)),
+        limits = c(lim1, lim2)
+      )
+      
+      # coord_trans(y = 'log10', ylim = c(lim1, lim2))
   }
   
-  plot_mVM <- function(y, y_se){
+  plot_mVM <- function(y, y_se, lim1, lim2){
     ggplot(group_by(iter_yp_VM, iter), 
            aes(x = Mass, y = y)) +
       geom_line(size = line.size) +
@@ -160,10 +161,11 @@
                           labels = lake.labels,
                           values = lake.colors) +
       scale_shape_manual(labels = exp_red.labels,
-                         values = c(16, 8, 13, 17), na.translate = F) #+
-      # scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
-      #               labels = trans_format("log10", math_format(10^.x))) 
-      #coord_trans(y = 'log10')
+                         values = c(16, 8, 13, 17), na.translate = F) +
+      scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                    labels = trans_format("log10", math_format(10^.x)), 
+                    limits = c(lim1, lim2))
+      # coord_trans(y = 'log10', ylim = c(lim1, lim2))
   }
   
   # Figure 1 ----
@@ -171,17 +173,15 @@
   position = position_jitterdodge(jitter.width = 0.2)
   Nexcr.p <- plot_emm(pwcN[["emmeans"]]) +
     geom_point(data = NPexcr %>% filter(Year != '2014'),
-               aes(x = Year, y = massnorm.N.excr),
+               aes(x = Year, y = log(massnorm.N.excr)),
                size = point.size2, alpha = point.alpha,
                position = position_jitterdodge(jitter.width = .2)) +
     labs(x = '',
          y = 'Mass-specific \n N excretion (μg N/g/h)') 
   Nexcr.p
   
-  eff_sizeN.p <- plot_effsize(pwcN[["effect_sizes"]]) +
-    labs(x = '',
-         y = 'Effect size') 
-  effsizeN.p
+  eff_sizeN.p <- plot_effsize(pwcN[["effect_sizes"]]) 
+  eff_sizeN.p
   
   # P excretion
   Pexcr.p <- plot_emm(pwcP[["emmeans"]]) +
@@ -194,10 +194,13 @@
          y = 'Mass-specific \n P excretion (μg P/g/h)') 
   Pexcr.p
   
-  eff_sizeP.p <- plot_effsize(pwcP[["effect_sizes"]]) +
+  eff_sizeP.p <- ggplot(pwcP[["effect_sizes"]], aes(x = Year, y = exp(-estimate))) +
+    geom_pointrange(aes(ymax = exp(-lower.CL), ymin = exp(-upper.CL)), lwd = 0.4) +
+    scale_x_discrete(labels = exp.labels) +
     labs(x = '',
-         y = 'Effect size') 
-  effsizeP.p
+         y = 'Effect size') +
+    theme_classic(base_size = 10) 
+  eff_sizeP.p
   
   # N:P excretion
   # N excretion
@@ -256,17 +259,18 @@
   # ..Figure 3 ----
   # Schiettekate et al model ----
   # N excretion 
-  Nexcr_mS.p <- plot_mS(iter_yp$N.excretion.mod) +
+  Nexcr_mS.p <- plot_mS(iter_yp$N.excretion.mod, 10^0.5, 10^3.3) +
     geom_point(aes(x = Mass, y = N.excretion.rate, color = Lake, shape = Year), 
                data = NPexcr %>%  filter(Year != '2014'),
                size = point.size, alpha = point.alpha + .2) +
     labs(x = "", y = "N excretion (μg N/ind/h)") +
     scale_shape_manual(labels = exp_red.labels,
-                       values = c(16, 8, 17), na.translate = F) 
+                       values = c(16, 8, 17), na.translate = F) +
+    theme(axis.text.x = element_blank())
   Nexcr_mS.p
   
   # P excretion
-  Pexcr_mS.p <- plot_mS(iter_yp$P.excretion.mod) +
+  Pexcr_mS.p <- plot_mS(iter_yp$P.excretion.mod, 10^-2.5, 10^3) +
     geom_point(aes(x = Mass, y = P.excretion.rate, color = Lake, shape = Year), 
                data = NPexcr,
                size = point.size, alpha = point.alpha + .2) +
@@ -276,38 +280,41 @@
   # V&M model ----
   # N excretion
   Nexcr_mVM.p <- plot_mVM(iter_yp_VM$N.excretion.m, 
-                          iter_yp_VM$N.excretion.m.se) +
+                          iter_yp_VM$N.excretion.m.se, 10^0.5, 10^3.3) +
     geom_point(aes(x = Mass, y = N.excretion.rate, color = Lake, shape = Year), 
                data = NPexcr %>%  filter(Year != '2014'),
                size = point.size, alpha = point.alpha + .2) +
     scale_shape_manual(labels = exp_red.labels,
                        values = c(16, 8, 17), na.translate = F) +
-    labs(x = "Dry mass (g)", 
-         y = "N excretion (μg N/ind/h)") 
+    labs(x = "", 
+         y = "") +
+    theme(axis.text.x = element_blank())
   Nexcr_mVM.p
   
   # P excretion
   Pexcr_mVM.p <- plot_mVM(iter_yp_VM$P.excretion.m, 
-                          iter_yp_VM$P.excretion.m.se) +
+                          iter_yp_VM$P.excretion.m.se, 10^-2.5, 10^3) +
     geom_point(aes(x = Mass, y = P.excretion.rate, color = Lake, shape = Year), 
                data = NPexcr,
                size = point.size, alpha = point.alpha + .2) +
-    labs(x = "Dry mass (g)", 
-         y = "P excretion (μg N/ind/h)") +
-    coord_trans(y = 'log10', ylim = c(0, 700))
+    labs(x = "", 
+         y = "") 
   Pexcr_mVM.p
   
   # combine plots ----
   fig3.legend <- get_legend(Pexcr_mS.p)
-  ggarrange(Nexcr_mS.p, Pexcr_mS.p, Nexcr_mVM.p, Pexcr_mVM.p, 
+  fig3 <- ggarrange(Nexcr_mS.p, Nexcr_mVM.p, Pexcr_mS.p,  Pexcr_mVM.p, 
             nrow = 2, ncol = 2,
             legend = 'right', common.legend = F, align = 'hv', 
             labels = c('(a)', '(b)', '(c)', '(d)'), 
             label.x = 0.17, label.y = 1, font.label = list(size = 8), 
             legend.grob = fig3.legend)
+  annotate_figure(fig3, 
+                  bottom = text_grob('Dry mass (g)', size = 10, y = 1))
+  
   ggsave('tables_figures/final-tables_figures/Fig3.tiff', 
-         width = 7, height =  4, 
-         units = 'in', dpi = 600, compression = 'lzw')
+         width = 7, height =  5, 
+         units = 'in', dpi = 600, compression = 'lzw', bg = 'white')
   
   # Figure 4 ----
   # plots ----
@@ -421,4 +428,8 @@
   ggsave('tables_figures/final-tables_figures/FigS3.tiff', 
          width = 7, height = 3.5, 
          units = 'in', dpi = 600)
+  
+  # export final tables excel files ----
+  write_csv(NPexcr, 'output/excr_final.csv')
+  write_csv(NPexcr.ss1, 'output/excr_smry_lake_year.csv')
   

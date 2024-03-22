@@ -34,10 +34,8 @@
       Total.length.cm = `Total length (mm)`/10,
       Fork.length = `Fork length (mm)`,
       Lake = as.factor(Lake),
-      Year = as.factor(Year),
-      Period = factor(ifelse(Year == '2012', 'Before', 'After')),
-      SiteClass = factor(ifelse(Lake == '239','Control', 'Impact')),
-      Period = fct_relevel(Period, 'After', after = Inf)) 
+      Year = as.factor(Year)
+      ) 
   
   str(NPexcr)
   
@@ -54,16 +52,25 @@
     dplyr::mutate(
       Year = factor(2022),
       Lake = if_else(Lake == 'L239', '239', '222')
-    ) %>% 
-    dplyr::filter(Mass <= 2.25) %>% 
-    group_by(Lake) %>% 
+    ) %>%
+    dplyr::filter(Mass <= 2.25) %>%
+    group_by(Lake) %>%
     filter(case_when(
       Lake == '239' ~ Mass < .5,
       TRUE ~ TRUE
     ))
   
   # join two datasets
-  NPexcr <- bind_rows(NPexcr, NPexcr_22)
+  NPexcr <- NPexcr %>% 
+    bind_rows(NPexcr_22) %>% 
+    mutate(
+      Period = factor(ifelse(Year == '2012', 'Before', 
+                             ifelse(Year == '2022', 'After', 'During'))),
+      SiteClass = factor(ifelse(Lake == '239','Control', 'Impact')),
+      Treatment = factor(ifelse(Year %in% c('2012', '2022'), 0, 
+                                ifelse(Year %in% c('2014', '2015') & Lake == '239', 0, 1))),
+      Period = fct_relevel(Period, 'After', after = Inf)
+    )
   
   # mass-correct the excretion ----
   NPexcr <- NPexcr %>% 
@@ -79,10 +86,15 @@
            massnorm.PAg.excr = massnorm.P.excr/massnorm.Tag.excr/(12/107))
   
   # ..summary statistics ----
-  
-  NPexcr.ss1 <- NPexcr %>% group_by(Lake, Year) %>%
+  NPexcr.ss <- NPexcr %>% group_by(Year) %>% 
     select(c('Mass', 'Fork.length', 'massnorm.N.excr', 'massnorm.P.excr',
              'massnorm.Tag.excr')) %>% 
+    describe_distribution() 
+  NPexcr.ss
+
+  NPexcr.ss1 <- NPexcr %>% group_by(Lake, Year) %>%
+    select(c('Mass', 'massnorm.N.excr', 'massnorm.P.excr', 'massnorm.NP.excr',
+             'massnorm.Tag.excr', 'massnorm.NAg.excr', 'massnorm.PAg.excr')) %>% 
     describe_distribution() 
   NPexcr.ss1
   
