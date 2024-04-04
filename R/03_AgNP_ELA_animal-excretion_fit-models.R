@@ -53,9 +53,9 @@
   # This model accounts for repeated measures within each lake and allows for individual variation between lakes as well as variation in the effect of treatment across different lakes and years.
   NPexcr.N <- NPexcr %>% filter(Year != '2014')
   log.massnorm.N.excr <- log10(NPexcr$massnorm.N.excr)
-  lmN <- lm(log(massnorm.N.excr) ~ Lake * Year, data = NPexcr.N)
-  lmN <- lmer(log(massnorm.N.excr) ~ SiteClass * Period + (1 | Lake),
-            data = NPexcr.N)
+  lmN <- lm(log(massnorm.N.excr) ~ Lake * Year, data = NPexcr %>% filter(Year != '2014'))
+  # lmN <- lmer(log(massnorm.N.excr) ~ SiteClass * Period + (1 | Lake),
+  #           data = NPexcr.N)
   # lmN <- lmer(log10(massnorm.N.excr) ~ Treatment * Year + (1 + Year | Lake), 
   #             data = NPexcr.N)
   anova_N <- anova(lmN)
@@ -130,7 +130,10 @@
   mdd <- 10^mdd_log
   mdd
 
-  
+  lmN <- lm(log10(massnorm.N.excr) ~ Lake*Year, 
+            data = NPexcr %>% filter(Year != '2014'))
+  anova(lmN)
+  summary(lmN)
   pwcN <- emm(lmN)
   
   # P excretion
@@ -143,12 +146,15 @@
   anova(lmP, ddf="Kenward-Roger")
   anova(lmPalt, ddf="Kenward-Roger")
   summary(lmPalt)
+  anova(lmP)
+  summary(lmP)
   pwcP <- emm(lmP)
   
   # N:P excretion
   lmNP <- lm(log(massnorm.NP.excr) ~ Lake*Year, 
             data = NPexcr %>% filter(Year != '2014'))
-  nova(lmNP)
+  anova(lmNP)
+  P <- anova(lmNP)
   summary(lmNP)
   pwcNP <- emm(lmNP)
   

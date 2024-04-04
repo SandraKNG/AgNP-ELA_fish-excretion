@@ -12,6 +12,69 @@
   library(patchwork) # to align multiple plots
   library(cowplot) # to align multiple plots
   library(scales) # for log scale formatting
+  
+  # make tables 
+  # Table S1 ----
+  combined_anova %>%  
+    gt(groupname_col = "groupname") %>% 
+    cols_label(
+      Predictors = "",
+      Df = md("**df**"),
+      'Sum Sq' = md("**SS**"),
+      'Mean Sq' = md("**MS**"),
+      'F value' = md("**F**"),
+      'Pr(>F)' = md("***p***")
+    ) %>% 
+    cols_align(
+      align = "center",
+      columns = c(Df, 'Sum Sq', 'Mean Sq', 'F value', 'Pr(>F)')
+    ) %>% 
+    fmt_number(
+      columns = c('Sum Sq', 'Mean Sq', 'F value'),
+      decimals = 3
+    ) %>% 
+    fmt_number(
+      columns = c('Pr(>F)'),
+      decimals = 2
+     ) %>% 
+  tab_style(
+    style = cell_borders(
+      sides = c("top", "bottom"),
+      style = 'hidden'
+    ),
+    locations = cells_body(
+      columns = everything(),
+      rows = everything()
+    )
+  ) %>% 
+  gtsave("tables_figures/final-tables_figures/tableS1.rtf")
+  
+  # Table S2 ----
+  contrasts %>% 
+    gt(groupname_col = "test") %>% 
+    fmt_number(
+      columns = everything(),
+      decimals = 3
+    ) %>% 
+    cols_align(
+      align = "center"
+    ) %>% 
+    cols_align(
+      align = "left",
+      columns = contrast
+    ) %>% 
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_column_labels()
+    ) %>% 
+    cols_label(
+      lower.CL = 'lower CI',
+      upper.CL = "upper CI",
+      t.ratio = "t ratio",
+      p.value = md("*p*")
+    ) %>% 
+    gtsave("tables_figures/final-tables_figures/tableS2.rtf")
+  
   # make tables 
   # Table S1 ----
   combined_anova %>%  
@@ -84,6 +147,7 @@
   point.alpha = .5
   CI.alpha = .25
   line.size = .75
+  jitter.position = position_jitterdodge(jitter.width = 0.2)
   
   get_legend <- function(a.gplot){
     tmp <- ggplot_gtable(ggplot_build(a.gplot))
@@ -92,12 +156,13 @@
     return(legend)
     }
   
-  plot_emm <- function(df) {
+  plot_emm <- function(df, xinter) {
     ggplot(df, aes(x = Year, y = response, color = Lake, group = Lake)) +
       geom_point(size = point.size, position = position_dodge(0.5)) +
       scale_x_discrete(labels = exp_red.labels) +
       geom_errorbar(aes(ymax = lower.CL, ymin = upper.CL), 
                     width = 0.2, lwd = 0.5, position = position_dodge(0.5)) +
+      geom_vline(xintercept = xinter, linetype = 'dashed', linewidth = .2) +
       theme_classic(base_size = 10) +
       scale_colour_manual(name = 'Lake',
                           labels = lake.labels,
@@ -170,12 +235,11 @@
   
   # Figure 1 ----
   # N excretion
-  position = position_jitterdodge(jitter.width = 0.2)
-  Nexcr.p <- plot_emm(pwcN[["emmeans"]]) +
+  Nexcr.p <- plot_emm(pwcN[["emmeans"]], 2.5) +
     geom_point(data = NPexcr %>% filter(Year != '2014'),
-               aes(x = Year, y = log(massnorm.N.excr)),
+               aes(x = Year, y = massnorm.N.excr),
                size = point.size2, alpha = point.alpha,
-               position = position_jitterdodge(jitter.width = .2)) +
+               position = jitter.position) +
     labs(x = '',
          y = 'Mass-specific \n N excretion (μg N/g/h)') 
   Nexcr.p
@@ -184,7 +248,7 @@
   eff_sizeN.p
   
   # P excretion
-  Pexcr.p <- plot_emm(pwcP[["emmeans"]]) +
+  Pexcr.p <- plot_emm(pwcP[["emmeans"]], 3.5) +
     geom_point(data = NPexcr,
                aes(x = Year, y = massnorm.P.excr),
                size = point.size2, alpha = point.alpha,
@@ -204,7 +268,7 @@
   
   # N:P excretion
   # N excretion
-  NPexcr.p <- plot_emm(pwcNP[["emmeans"]]) +
+  NPexcr.p <- plot_emm(pwcNP[["emmeans"]], 2.5) +
     geom_point(data = NPexcr %>% filter(Year != '2014'),
                aes(x = Year, y = massnorm.NP.excr),
                size = point.size2, alpha = point.alpha,
@@ -309,12 +373,18 @@
             labels = c('(a)', '(b)', '(c)', '(d)'), 
             label.x = 0.17, label.y = 1, font.label = list(size = 8), 
             legend.grob = fig3.legend)
+<<<<<<< HEAD
   annotate_figure(fig3, 
                   bottom = text_grob('Dry mass (g)', size = 10, y = 1))
   
   ggsave('tables_figures/final-tables_figures/Fig3.tiff', 
          width = 7, height =  5, 
          units = 'in', dpi = 600, compression = 'lzw', bg = 'white')
+=======
+  ggsave('tables_figures/final-tables_figures/Fig3.tiff', 
+         width = 7, height =  4, 
+         units = 'in', dpi = 600, compression = 'lzw')
+>>>>>>> fc56b5e280398a99aa1b7c8f1a834384b58e39e3
   
   # Figure 4 ----
   # plots ----

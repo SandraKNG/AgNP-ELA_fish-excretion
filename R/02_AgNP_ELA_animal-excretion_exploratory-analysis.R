@@ -194,6 +194,13 @@
   # which levels are different? Lakes from 2014 vs. 2015
   postHocs <- glht(lm.Px, linfct = mcp(Year = "Tukey"))
   
+  # P excretion in 2022 only
+  NPexcr_22 <- NPexcr_22 %>% mutate(massnorm.P.excr = P.excretion.rate/Mass)
+  ggplot(NPexcr_22, aes(x = Lake, y = massnorm.P.excr,
+                        group = Lake)) +
+    geom_boxplot() +
+    geom_point(aes(colour = Lake))
+  
   # Fish Stoich model ----
   # set up parameters
   parameters <- model_parameters("Perca flavescens", otolith = F,
