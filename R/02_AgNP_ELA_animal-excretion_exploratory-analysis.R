@@ -92,15 +92,16 @@
           data = NPexcr)
   leveneTest(N.excretion ~ Year, 
              data = NPexcr %>% filter(Year != '2014'))
-  # plot mean P/N excretion vs. SD to see if there is a positive relationship between the two. If yes, a log-transformation is possible. Here both mean P and N excretions have a good positive relationship with their respective SD
+  # plot mean P/N excretion vs. SD to see if there is a positive relationship between the two. 
+  # If yes, a log-transformation is possible. Here both mean P and N excretions have a good positive relationship with their respective SD
   ggplot(NPexcr.ts, aes(massnorm.P.excr.sd, massnorm.P.excr.av)) +
     geom_point()
   ggplot(NPexcr.ts, aes(massnorm.N.excr.sd, massnorm.N.excr.av)) +
     geom_point()
   # test for heterogeneity of variances using Levene's test BUT old-school, not really telling where the heterogeneity is
-  leveneTest(Log.massnorm.N.excr ~ Lake*Year, data = NPexcr)
+  leveneTest(log10(massnorm.N.excr) ~ Lake*Year, data = NPexcr)
   # variances significantly diff
-  leveneTest(Log.massnorm.P.excr ~ Lake*Year, data = NPexcr) 
+  leveneTest(log10(massnorm.P.excr) ~ Lake*Year, data = NPexcr) 
   # variances significantly diff
   
   # ..normality of the residuals 
@@ -200,6 +201,19 @@
                         group = Lake)) +
     geom_boxplot() +
     geom_point(aes(colour = Lake))
+  
+  # correlation between N, P, Ag excretion rates
+  ggplot(NPexcr %>% filter(Year == 2015), 
+         aes(x = massnorm.N.excr, y = massnorm.P.excr)) +
+    geom_point()
+  
+  ggplot(NPexcr %>% filter(Year == 2015), 
+         aes(x = massnorm.N.excr, y = massnorm.Tag.excr)) +
+    geom_point()
+  
+  ggplot(NPexcr %>% filter(Year == 2015), 
+         aes(x = massnorm.P.excr, y = massnorm.Tag.excr)) +
+    geom_point()
   
   # Fish Stoich model ----
   # set up parameters

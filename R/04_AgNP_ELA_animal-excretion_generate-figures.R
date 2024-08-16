@@ -137,6 +137,11 @@
     ) %>% 
     gtsave("tables_figures/final-tables_figures/tableS2.rtf")
   
+  # Table S3 ----
+  MDD_results %>% 
+    gt() %>% 
+    gtsave("tables_figures/final-tables_figures/tableS3.rtf")
+  
   # set up plot parameters ----
   lake.labels <- c('Experimental', 'Reference')
   exp.labels <- c('Pre-addition', 'Year 1', 'Year 2', 'Post-addition')

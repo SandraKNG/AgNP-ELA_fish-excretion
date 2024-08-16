@@ -54,83 +54,13 @@
   NPexcr.N <- NPexcr %>% filter(Year != '2014')
   log.massnorm.N.excr <- log10(NPexcr$massnorm.N.excr)
   lmN <- lm(log(massnorm.N.excr) ~ Lake * Year, data = NPexcr %>% filter(Year != '2014'))
-  # lmN <- lmer(log(massnorm.N.excr) ~ SiteClass * Period + (1 | Lake),
-  #           data = NPexcr.N)
-  # lmN <- lmer(log10(massnorm.N.excr) ~ Treatment * Year + (1 + Year | Lake), 
-  #             data = NPexcr.N)
   anova_N <- anova(lmN)
   summary(lmN)
-  # m2 <- emmeans(lmN, specs = "Treatment", type = 'response')
-  # eff_size_df <- summary(eff_size(m2, sigma = sigma(lmN), 
-  #                                 edf = df.residual(lmN))) %>% 
-  #   as_tibble()
-  
-  NPexcr_c <- NPexcr %>%  
-    filter(Lake == '239', Year == 2015) 
-  transc <- NPexcr_c$massnorm.N.excr
-  NPexcr_t <- NPexcr %>%  
-    filter(Lake == '222', Year == 2015) 
-  transt <- NPexcr_t$massnorm.N.excr
-  
-  # attempt 1 ----
-  # Function to calculate MDD for ANOVA
-  calculate_MDD_ANOVA <- function(anova_result, alpha = 0.05) {
-    # Extract degrees of freedom for error and total
-    df_error <- anova_result$"Df"[2]  # Degrees of freedom for error
-    df_total <- sum(anova_result$"Df")  # Total degrees of freedom
-    
-    # Calculate the critical F-value
-    critical_f_value <- qf(1 - alpha, df_error, df_total - df_error)
-    
-    # Calculate the MDD effect size
-    num_groups <- 2 * 3  # Assuming 2 Lake groups and 3 Year groups
-    mdd_effect_size <- sqrt(critical_f_value / num_groups)
-    
-    return(mdd_effect_size)
-  }
-  
-  # Calculate MDD for the provided ANOVA result
-  log_mdd_effect_size <- calculate_MDD_ANOVA(anova_N)
-  # Back-transform MDD effect size
-  mdd_effect_size <- 10^log_mdd_effect_size
-  
-  # Calculate the upper CI for ANOVA
-  upper_CI_ANOVA <- mean(transc) - mean(transt) +
-    qf(0.95, df_error, df_total - df_error) *
-    sqrt(var(c(transc - mean(transc), transt - mean(transt)))) *
-    sqrt(2 / N)
   
   
-  # attempt 2 ----
-  # Define parameters
-  alpha <- 0.05  # Significance level
-  power <- 0.80  # Desired power
-  effect_size <- 2  # Desired effect size (Cohen's d)
+  # lm models
   
-  # Extract MSE
-  mse <- tail(anova_N$"Mean Sq", 1)
-  
-  # Degrees of freedom
-  # Find the row corresponding to the interaction term(s)
-  interaction_row <- grep("\\*", rownames(anova_N))
-  # Degrees of freedom associated with the interaction term(s)
-  df_interaction <- anova_N[interaction_row, "Df"] 
-  df_residual <- lmN$df.residual
-  
-  # Calculate critical F-value
-  critical_f_value <- qf(1 - alpha, df_interaction, df_residual)
-  
-  # Sample sizes (if different by group)
-  sample_sizes <- c(20, 15, 18, 7, 8, 4)  # Sample sizes per group or combination of levels
-  
-  # Calculate MDD
-  # The MDD represents the smallest difference between group means that you can 
-  # detect with the specified sample size, power, and significance level.
-  mdd_log <- sqrt((2 * (1 / mean(sample_sizes)) * df_residual) / critical_f_value)
-  mdd <- 10^mdd_log
-  mdd
-
-  lmN <- lm(log10(massnorm.N.excr) ~ Lake*Year, 
+  lmN <- lm(log(massnorm.N.excr) ~ Lake*Year, 
             data = NPexcr %>% filter(Year != '2014'))
   anova(lmN)
   summary(lmN)
@@ -138,10 +68,10 @@
   
   # P excretion
   lmP <- lmer(log10(massnorm.P.excr) ~ Treatment + (1 | Lake) + (1 | Lake:Year), 
-            data = NPexcr)
+              data = NPexcr)
   lmPalt <- lmer(log(massnorm.P.excr) ~ Period * SiteClass + (1 |Lake), data = NPexcr)
   lmP <- lm(log(massnorm.P.excr) ~ Lake*Year, 
-             data = NPexcr)
+            data = NPexcr)
   
   anova(lmP, ddf="Kenward-Roger")
   anova(lmPalt, ddf="Kenward-Roger")
@@ -152,18 +82,162 @@
   
   # N:P excretion
   lmNP <- lm(log(massnorm.NP.excr) ~ Lake*Year, 
-            data = NPexcr %>% filter(Year != '2014'))
+             data = NPexcr %>% filter(Year != '2014'))
   anova(lmNP)
   P <- anova(lmNP)
   summary(lmNP)
   pwcNP <- emm(lmNP)
   
-  # make lm table based on all model ----
+  # MDD Function ----
+  MDD <- function(N1, N2, variance1, variance2 = NULL, alpha = 0.05, 
+                  two.sided = TRUE, var.equal = TRUE) {
+    m <- list()
+    m$n1 <- N1
+    m$n2 <- N2
+    m$variance1 <- variance1
+    m$variance2 <- ifelse(is.null(variance2), variance1, variance2)
+    m$alpha <- alpha
+    m$two.sided <- two.sided
+    
+    if (var.equal) {
+      df <- N1 + N2 - 2
+      nu <- sqrt(variance1) * sqrt(1 / N1 + 1 / N2)
+    } else {
+      df <- (variance1 / N1 + m$variance2 / N2)^2 / 
+        ((variance1 / N1)^2 / (N1 - 1) + (m$variance2 / N2)^2 / (N2 - 1))
+      nu <- sqrt(variance1 / N1 + m$variance2 / N2)
+    }
+    
+    m$df <- df
+    m$nu <- nu
+    qt_val <- qt(alpha / ifelse(two.sided, 2, 1), df = df, lower.tail = FALSE)
+    m$mdd <- qt_val * nu
+    
+    class(m) <- "MDD"
+    return(m)
+  }
+  
+  # Initialize Output DataFrame ----
+  columns_to_analyze <- c("massnorm.N.excr", "massnorm.P.excr", "massnorm.NP.excr")
+  output_size <- length(unique(NPexcr$Year)) * length(columns_to_analyze)
+  out <- data.frame(
+    Year = rep(NA, output_size),
+    Variable = rep(NA, output_size),
+    Nc = rep(NA, output_size),
+    Nt = rep(NA, output_size),
+    control_mean = rep(NA, output_size),
+    treatment_mean = rep(NA, output_size),
+    p = rep(NA, output_size), 
+    pMDD = rep(NA, output_size), 
+    pMDE = rep(NA, output_size), 
+    pCI = rep(NA, output_size),
+    mdd_exc = rep(NA, output_size),
+    mde_exc = rep(NA, output_size),
+    upperCI_exc = rep(NA, output_size)
+  )
+  
+  # Data Processing and Analysis ----
+  i <- 1
+  for (y in unique(NPexcr$Year)) {
+    for (col in columns_to_analyze) {
+
+      
+      # Filter data for control and treatment groups
+      control <- NPexcr %>% 
+        filter(Year == y, Lake == 239, !is.na(.data[[col]])) %>% 
+        pull(.data[[col]])
+      
+      treatment <- NPexcr %>% 
+        filter(Year == y, Lake == 222, !is.na(.data[[col]])) %>% 
+        pull(.data[[col]])
+      
+      # cat("Control: ", y, col, paste(unlist(control), collapse = ", "), "\n")
+      # cat("Treatment ", y, col, paste(unlist(treatment), collapse = ", "), "\n")
+      
+      # Skip iteration if data is insufficient
+      if (length(control) < 2 | length(treatment) < 2) next
+      
+      Nc <- length(unique(control))
+      Nt <- length(unique(treatment))
+      N_av <- (Nc + Nt) / 2
+      
+      transc <- log(control + 1)
+      transt <- log(treatment + 1)
+      
+      # cat("Control: ", y, col, paste(unlist(transc), collapse = ", "), "\n")
+      # cat("Treatment ", y, col, paste(unlist(transc), collapse = ", "), "\n")
+      
+      # Combined Variance Calculation
+      combined_variance <- var(c(transc - mean(transc), transt - mean(transt)))
+      
+      # MDD Calculation
+      mdd_ln <- MDD(N1 = Nc, N2 = Nt, variance1 = (var(transc) + var(transt)) / 2, 
+                    alpha = 0.05, two.sided = F, var.equal = T)
+      
+      # Post Hoc Power Calculation
+      postpower <- power.t.test(n = N_av, delta = NULL, 
+                                sd = sqrt(combined_variance), 
+                                sig.level = 0.05, alternative = "one.sided", 
+                                type = "two.sample", power = 0.8)
+      
+      # Upper Confidence Interval Calculation
+      if(mean(transc) > mean(transt)){
+      upperCI <- mean(transc) - mean(transt) + 
+        qt(0.05, df = Nc + Nt - 2, lower.tail = FALSE) * 
+        sqrt(combined_variance) * sqrt(2 / (Nc + Nt))
+      } else {
+        upperCI <- mean(transt) - mean(transc) + 
+          qt(0.05, df = Nc + Nt - 2, lower.tail = FALSE) * 
+          sqrt(combined_variance) * sqrt(2 / (Nc + Nt))
+      }
+      
+      # Backtransformation MDD, MDE and upper bound of the CI:
+      mdd_exc <- (exp(mean(transc)) - exp(mean(transc) - mdd_ln$mdd))
+      mde_exc <- (exp(mean(transc)) - exp(mean(transc) - postpower$delta))
+      upperCI_exc <- (exp(mean(transc)) - exp(mean(transc) - upperCI))
+      
+      # Relation to Control Mean
+      control_mean <- round(exp(mean(transc) - 1), 2)
+      treatment_mean <- round(exp(mean(transt) - 1), 2)
+      pMDD <- round(100 * mdd_exc / control_mean - 1, 2)
+      pMDE <- round(100 * mde_exc / control_mean - 1, 2)
+      pCI <- round(100 * upperCI_exc / control_mean - 1, 2)
+      
+      # Store Results in Output DataFrame
+      test <- t.test(transc, transt, alternative = "greater", var.equal = T)
+      out[i,] <- c(y, col, Nc, Nt, control_mean, treatment_mean, round(test$p.value, 2), pMDD, pMDE, pCI, 
+                   round(mdd_exc, 2), round(mde_exc, 2), round(upperCI_exc, 2))
+      
+      i <- i + 1
+    }
+  }
+
+  MDD_results <- out %>% 
+    filter(!is.na(Year)) %>% 
+    select(Year, Variable, Nc, Nt, control_mean, treatment_mean, p, pMDD, mdd_exc) %>% 
+    rename(N_reference = Nc,
+           N_experimental = Nt,
+           reference_mean = control_mean,
+           experimental_mean = treatment_mean,
+           MDD = mdd_exc) %>% 
+    mutate(Year = if_else(Year == 2012, "Pre-addition",
+                          if_else(Year == 2014, "Year 1",
+                                  if_else(Year == 2015, "Year 2", "Post-addition"))),
+           Variable = case_when(
+             Variable == "massnorm.N.excr" ~ "mass-specific N excretion",
+             Variable == "massnorm.P.excr" ~ "mass-specific P excretion",
+             Variable == "massnorm.NP.excr" ~ "mass-specific N:P excretion",
+             TRUE ~ Variable  # Keep any other variables unchanged
+             )) %>% 
+    mutate(Year = fct_relevel(Year, "Pre-addition", "Year 1", "Year 2", "Post-addition")) %>%
+    arrange(Variable, Year)
+  
+
   lm_models <- list(
     "Mass" = lmMass,
-    "Mass-normalized N excretion" = lmN,
-    "Mass-normalized P excretion" = lmP,
-    "Mass-normalized N:P excretion" = lmNP
+    "Mass-specific N excretion" = lmN,
+    "Mass-specific P excretion" = lmP,
+    "Mass-specific N:P excretion" = lmNP
   )
   combined_anova <- bind_rows(lapply(names(lm_models), function(model_name) {
     model <- lm_models[[model_name]]
