@@ -171,23 +171,29 @@
       combined_variance <- var(c(transc - mean(transc), transt - mean(transt)))
       
       # MDD Calculation
-      mdd_ln <- MDD(N1 = Nc, N2 = Nt, variance1 = (var(transc) + var(transt)) / 2, 
-                    alpha = 0.05, two.sided = F, var.equal = T)
+      if (col == 'massnorm.P.excr') {
+        mdd_ln <- MDD(N1 = Nc, N2 = Nt, variance1 = (var(transc) + var(transt)) / 2, 
+                    alpha = 0.05, two.sided = T, var.equal = F)
+      } else {
+        mdd_ln <- MDD(N1 = Nc, N2 = Nt, variance1 = (var(transc) + var(transt)) / 2, 
+                      alpha = 0.05, two.sided = T, var.equal = T)
+      }
+      
       
       # Post Hoc Power Calculation
       postpower <- power.t.test(n = N_av, delta = NULL, 
                                 sd = sqrt(combined_variance), 
-                                sig.level = 0.05, alternative = "one.sided", 
+                                sig.level = 0.05, alternative = "two.sided", 
                                 type = "two.sample", power = 0.8)
       
       # Upper Confidence Interval Calculation
-      if(mean(transc) > mean(transt)){
-      upperCI <- mean(transc) - mean(transt) + 
-        qt(0.05, df = Nc + Nt - 2, lower.tail = FALSE) * 
-        sqrt(combined_variance) * sqrt(2 / (Nc + Nt))
+      if (mean(transc) > mean(transt)) {
+        upperCI <- mean(transc) - mean(transt) +
+          qt(0.05, df = Nc + Nt - 2, lower.tail = FALSE) *
+          sqrt(combined_variance) * sqrt(2 / (Nc + Nt))
       } else {
-        upperCI <- mean(transt) - mean(transc) + 
-          qt(0.05, df = Nc + Nt - 2, lower.tail = FALSE) * 
+        upperCI <- mean(transt) - mean(transc) +
+          qt(0.05, df = Nc + Nt - 2, lower.tail = FALSE) *
           sqrt(combined_variance) * sqrt(2 / (Nc + Nt))
       }
       
@@ -204,7 +210,11 @@
       pCI <- round(100 * upperCI_exc / control_mean - 1, 2)
       
       # Store Results in Output DataFrame
-      test <- t.test(transc, transt, alternative = "greater", var.equal = T)
+      if (col == 'massnorm.P.excr') {
+      test <- t.test(transc, transt, alternative = "two.sided", var.equal = F)
+      } else {
+        test <- t.test(transc, transt, alternative = "two.sided", var.equal = T)
+      }
       out[i,] <- c(y, col, Nc, Nt, control_mean, treatment_mean, round(test$p.value, 2), pMDD, pMDE, pCI, 
                    round(mdd_exc, 2), round(mde_exc, 2), round(upperCI_exc, 2))
       
@@ -214,12 +224,13 @@
 
   MDD_results <- out %>% 
     filter(!is.na(Year)) %>% 
-    select(Year, Variable, Nc, Nt, control_mean, treatment_mean, p, pMDD, mdd_exc) %>% 
+    select(Year, Variable, Nc, Nt, control_mean, treatment_mean, p, pMDD, mdd_exc, pCI, upperCI_exc) %>% 
     rename(N_reference = Nc,
            N_experimental = Nt,
            reference_mean = control_mean,
            experimental_mean = treatment_mean,
-           MDD = mdd_exc) %>% 
+           MDD = mdd_exc,
+           upperCI = upperCI_exc) %>% 
     mutate(Year = if_else(Year == 2012, "Pre-addition",
                           if_else(Year == 2014, "Year 1",
                                   if_else(Year == 2015, "Year 2", "Post-addition"))),

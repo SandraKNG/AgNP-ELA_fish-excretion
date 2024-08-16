@@ -378,18 +378,18 @@
             labels = c('(a)', '(b)', '(c)', '(d)'), 
             label.x = 0.17, label.y = 1, font.label = list(size = 8), 
             legend.grob = fig3.legend)
-<<<<<<< HEAD
+
   annotate_figure(fig3, 
                   bottom = text_grob('Dry mass (g)', size = 10, y = 1))
   
   ggsave('tables_figures/final-tables_figures/Fig3.tiff', 
          width = 7, height =  5, 
          units = 'in', dpi = 600, compression = 'lzw', bg = 'white')
-=======
+
   ggsave('tables_figures/final-tables_figures/Fig3.tiff', 
          width = 7, height =  4, 
          units = 'in', dpi = 600, compression = 'lzw')
->>>>>>> fc56b5e280398a99aa1b7c8f1a834384b58e39e3
+
   
   # Figure 4 ----
   # plots ----

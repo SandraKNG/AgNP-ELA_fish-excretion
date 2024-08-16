@@ -99,9 +99,11 @@
   ggplot(NPexcr.ts, aes(massnorm.N.excr.sd, massnorm.N.excr.av)) +
     geom_point()
   # test for heterogeneity of variances using Levene's test BUT old-school, not really telling where the heterogeneity is
-  leveneTest(log10(massnorm.N.excr) ~ Lake*Year, data = NPexcr)
+  leveneTest(log(massnorm.N.excr) ~ Lake*Year, data = NPexcr)
+  leveneTest(log(massnorm.N.excr) ~ Lake, data = NPexcr)
   # variances significantly diff
-  leveneTest(log10(massnorm.P.excr) ~ Lake*Year, data = NPexcr) 
+  leveneTest(log(massnorm.P.excr) ~ Lake*Year, data = NPexcr) 
+  leveneTest(log(massnorm.NP.excr) ~ Lake* Year, data = NPexcr)
   # variances significantly diff
   
   # ..normality of the residuals 
