@@ -4,6 +4,7 @@
   
   # load libraries ----
   library(car)
+  library(lmerTest) # for lmer
   
   # ..log10 mass vs log10 N or P excretion for all the data by lake ----
   # visualize Log10 N excretion vs. Log10 mass by Lake
@@ -171,7 +172,21 @@
   }
   par(opar)
   
-  # whether using N.excretion, log or log10 transformed N excretion, 
+  # Ag excretion
+  # Ag
+  gghistogram(excr.Tag, x = 'massnorm.Tag.excr', rug = T, 
+              fill = 'Year', add = 'mean')
+  ggqqplot(excr.Tag, x = "massnorm.Tag.excr", facet.by = "Year")
+  excr.Tag %>%  group_by(Year) %>% shapiro_test(massnorm.Tag.excr)
+  
+  # N:Ag
+  hist(NPexcr$massnorm.NAg.excr)
+  
+  # P:Ag
+  hist(NPexcr$massnorm.PAg.excr)
+  
+  # Alternative models tests: ANCOVA and repeated measured ANOVA ----
+  # testing whether using N.excretion, log or log10 transformed N excretion, 
   # residuals vs. predicted values still look quite different from 
   # those generated randomly: light/heavy-tailed on both ends (N excretion)
   # or on the right only (log and log10 transformation)
@@ -186,6 +201,15 @@
   # which levels are different? Lakes from 2012 vs. 2015
   TukeyHSD(aov(lm.Nxnorm), ordered = F)
   
+  # repeated measures ANOVA
+  # using site class (i.e., treatment and control) and 
+  # period (i.e., before, during, and after) as fixed factors with an interaction effect, 
+  # and lake and year as random factors 
+  lmN <- lmer(log(massnorm.N.excr) ~ Period * SiteClass + (1 |Lake:Year), data = NPexcr %>% filter(Year != '2014'))
+  anova(lmN)
+  anova(lmN, ddf = "Kenward-Roger")
+  summary(lmN)
+  
   # P excretion
   # ANCOVA
   lm.Px <- lm(log10(P.excretion.rate) ~ log10(Mass)*Year, 
@@ -196,6 +220,12 @@
   summary(lm.Px)
   # which levels are different? Lakes from 2014 vs. 2015
   postHocs <- glht(lm.Px, linfct = mcp(Year = "Tukey"))
+  
+  # repeated measures ANOVA
+  lmP <- lmer(log(massnorm.P.excr) ~ Period * SiteClass + (1 |Lake:Year), data = NPexcr)
+  anova(lmP)
+  anova(lmP, ddf = "Kenward-Roger")
+  summary(lmP)
   
   # P excretion in 2022 only
   NPexcr_22 <- NPexcr_22 %>% mutate(massnorm.P.excr = P.excretion.rate/Mass)
@@ -216,6 +246,7 @@
   ggplot(NPexcr %>% filter(Year == 2015), 
          aes(x = massnorm.P.excr, y = massnorm.Tag.excr)) +
     geom_point()
+  
   
   # Fish Stoich model ----
   # set up parameters

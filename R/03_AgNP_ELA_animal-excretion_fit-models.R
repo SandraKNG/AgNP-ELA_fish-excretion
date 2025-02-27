@@ -3,13 +3,11 @@
   # this code was developped by S. Klemet-N'Guessan in 2020-2023
   
   # load libraries ----
-  library(lmerTest) # for lmer
   library(fishflux)
   library(emmeans) # post-hoc pairwise comparisons using lm, glm, levDev models
   library(car)
   library(performance)
-  # library(pwr) # for power analysis for MDD
-  # library(arm)
+  library(ggpubr)
   
   # LM & emmeans ----
   emm <- function(lm){
@@ -47,19 +45,6 @@
   pwcMass <- emm(lmMass)
   
   # N excretion
-  # Treatment is the fixed effect of interest.
-  # (1 | Lake) specifies random intercepts for each lake, allowing for individual variation in intercepts.
-  # (1 | Lake:Year) specifies random intercepts for the interaction between Lake and Year, allowing for variation in intercepts across different combinations of Lake and Year.
-  # This model accounts for repeated measures within each lake and allows for individual variation between lakes as well as variation in the effect of treatment across different lakes and years.
-  NPexcr.N <- NPexcr %>% filter(Year != '2014')
-  log.massnorm.N.excr <- log10(NPexcr$massnorm.N.excr)
-  lmN <- lm(log(massnorm.N.excr) ~ Lake * Year, data = NPexcr %>% filter(Year != '2014'))
-  anova_N <- anova(lmN)
-  summary(lmN)
-  
-  
-  # lm models
-  
   lmN <- lm(log(massnorm.N.excr) ~ Lake*Year, 
             data = NPexcr %>% filter(Year != '2014'))
   anova(lmN)
@@ -67,15 +52,8 @@
   pwcN <- emm(lmN)
   
   # P excretion
-  lmP <- lmer(log10(massnorm.P.excr) ~ Treatment + (1 | Lake) + (1 | Lake:Year), 
-              data = NPexcr)
-  lmPalt <- lmer(log(massnorm.P.excr) ~ Period * SiteClass + (1 |Lake), data = NPexcr)
   lmP <- lm(log(massnorm.P.excr) ~ Lake*Year, 
             data = NPexcr)
-  
-  anova(lmP, ddf="Kenward-Roger")
-  anova(lmPalt, ddf="Kenward-Roger")
-  summary(lmPalt)
   anova(lmP)
   summary(lmP)
   pwcP <- emm(lmP)
@@ -84,7 +62,6 @@
   lmNP <- lm(log(massnorm.NP.excr) ~ Lake*Year, 
              data = NPexcr %>% filter(Year != '2014'))
   anova(lmNP)
-  P <- anova(lmNP)
   summary(lmNP)
   pwcNP <- emm(lmNP)
   
@@ -205,9 +182,9 @@
       # Relation to Control Mean
       control_mean <- round(exp(mean(transc) - 1), 2)
       treatment_mean <- round(exp(mean(transt) - 1), 2)
-      pMDD <- round(100 * mdd_exc / control_mean - 1, 2)
-      pMDE <- round(100 * mde_exc / control_mean - 1, 2)
-      pCI <- round(100 * upperCI_exc / control_mean - 1, 2)
+      pMDD <- round(100 * mdd_exc / control_mean - 1, 1)
+      pMDE <- round(100 * mde_exc / control_mean - 1, 1)
+      pCI <- round(100 * upperCI_exc / control_mean - 1, 1)
       
       # Store Results in Output DataFrame
       if (col == 'massnorm.P.excr') {
@@ -216,7 +193,7 @@
         test <- t.test(transc, transt, alternative = "two.sided", var.equal = T)
       }
       out[i,] <- c(y, col, Nc, Nt, control_mean, treatment_mean, round(test$p.value, 2), pMDD, pMDE, pCI, 
-                   round(mdd_exc, 2), round(mde_exc, 2), round(upperCI_exc, 2))
+                   round(mdd_exc, 1), round(mde_exc, 1), round(upperCI_exc, 1))
       
       i <- i + 1
     }
@@ -224,13 +201,13 @@
 
   MDD_results <- out %>% 
     filter(!is.na(Year)) %>% 
-    select(Year, Variable, Nc, Nt, control_mean, treatment_mean, p, pMDD, mdd_exc, pCI, upperCI_exc) %>% 
+    select(Year, Variable, Nc, Nt, control_mean, treatment_mean, p, pMDD, mdd_exc) %>%  #pCI, upperCI_exc) %>% 
     rename(N_reference = Nc,
            N_experimental = Nt,
            reference_mean = control_mean,
            experimental_mean = treatment_mean,
-           MDD = mdd_exc,
-           upperCI = upperCI_exc) %>% 
+           MDD = mdd_exc) %>% 
+           #upperCI = upperCI_exc) %>% 
     mutate(Year = if_else(Year == 2012, "Pre-addition",
                           if_else(Year == 2014, "Year 1",
                                   if_else(Year == 2015, "Year 2", "Post-addition"))),
@@ -273,64 +250,23 @@
   # wilcox test ----
   excr.Tag <- NPexcr %>% 
     dplyr::filter(!(Year %in% c('2012', '2022'))) 
-  # perform bootstrapping with 2000 replications
-  set.seed(1)
-  reps <- boot(data = excr.Tag, statistic = coef_function, 
-               R = 2000, formula = massnorm.Tag.excr ~ Year)
-  plot(reps)
   
   # Ag
-  gghistogram(excr.Tag, x = 'massnorm.Tag.excr', rug = T, 
-              fill = 'Year', add = 'mean')
-  ggqqplot(excr.Tag, x = "massnorm.Tag.excr", facet.by = "Year")
-  excr.Tag %>%  group_by(Year) %>% shapiro_test(massnorm.Tag.excr)
   var.test(massnorm.Tag.excr ~ Year,  excr.Tag, alternative = 'two.sided')
   w.Tag <- wilcox.test(massnorm.Tag.excr ~ Year, excr.Tag, var.equal = F)
   w.Tag
   
   # N:Ag
-  hist(NPexcr$massnorm.NAg.excr)
   var.test(massnorm.NAg.excr ~ Year, NPexcr, alternative = 'two.sided')
   w.NAg <- wilcox.test(massnorm.NAg.excr ~ Year,  excr.Tag)
   w.NAg
   
   # P:Ag
-  hist(NPexcr$massnorm.PAg.excr)
   var.test(massnorm.PAg.excr ~ Year, NPexcr, alternative = 'two.sided')
   w.PAg <- wilcox.test(massnorm.PAg.excr ~ Year,  excr.Tag)
   w.PAg
   
   # simulation models ----
-  # ..V&M universal model ----
-  set.seed(1)
-  VM.m <- NPexcr %>%  select(Lake, Year, Temperature, Mass)
-  VM.m <- VM.m %>% group_by(Lake, Year) %>% 
-    mutate(Temperature = replace_na(Temperature, sample(16:20, 1)),
-           N.excretion.m = 10^(1.461 + 0.684 * log10(Mass) + 
-                                 0.0246 * Temperature - 0.2013 + 0.7804),
-           N.excretion.m.se = 10^(0.0897 + 0.0177 * log10(Mass) + 
-                                    0.0014 * Temperature - 0.0771 + 0.0655),
-           P.excretion.m = 10^(0.6757 + 0.5656 * log10(Mass) + 
-                                 0.0194 * Temperature - 0.248 + 0.7504),
-           P.excretion.m.se = 10^(0.0992 + 0.0205 * log10(Mass) +
-                                    0.002 * Temperature - 0.0922 + 0.0768),
-    ) %>% 
-    ungroup() %>% 
-    dplyr::filter(!is.na(Mass))
-  
-  # Select columns and repeat values
-  VM.m_sub <- VM.m %>% 
-    select(starts_with(c('N', 'P', 'M'))) 
-  
-  iter_yp_VM <- data.frame(
-    N.excretion.m = rep(VM.m_sub$N.excretion.m, each = 2500),
-    N.excretion.m.se = rep(VM.m_sub$N.excretion.m.se, each = 2500),
-    P.excretion.m = rep(VM.m_sub$P.excretion.m, each = 2500),
-    P.excretion.m.se = rep(VM.m_sub$P.excretion.m.se, each = 2500),
-    Mass = rep(VM.m_sub$Mass, each = 2500),
-    iter = rep(1:2500, each = 132)
-  ) 
-  
   # ..Schiettekatte FishStoich model ----
   # Yellow perch
   total.length <- exp((log(NPexcr$Wet.mass[!is.na(NPexcr$Wet.mass)]/

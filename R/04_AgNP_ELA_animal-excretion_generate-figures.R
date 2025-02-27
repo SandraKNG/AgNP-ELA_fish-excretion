@@ -216,27 +216,9 @@
         labels = trans_format("log10", math_format(10 ^ .x)),
         limits = c(lim1, lim2)
       )
-      
-      # coord_trans(y = 'log10', ylim = c(lim1, lim2))
   }
   
-  plot_mVM <- function(y, y_se, lim1, lim2){
-    ggplot(group_by(iter_yp_VM, iter), 
-           aes(x = Mass, y = y)) +
-      geom_line(size = line.size) +
-      geom_ribbon(aes(ymin = y - y_se,
-                      ymax = y + y_se), alpha = .1) +
-      theme_classic(base_size = 10) +
-      scale_colour_manual(name = 'Lake',
-                          labels = lake.labels,
-                          values = lake.colors) +
-      scale_shape_manual(labels = exp_red.labels,
-                         values = c(16, 8, 13, 17), na.translate = F) +
-      scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
-                    labels = trans_format("log10", math_format(10^.x)), 
-                    limits = c(lim1, lim2))
-      # coord_trans(y = 'log10', ylim = c(lim1, lim2))
-  }
+
   
   # Figure 1 ----
   # N excretion
@@ -291,7 +273,7 @@
   ggarrange(Nexcr.p, eff_sizeN.p, Pexcr.p, eff_sizeP.p, NPexcr.p, 
             eff_sizeNP.p, ncol = 2, nrow = 3, 
             labels = c("(a)", "(b)", "(c)", "(d)","(e)", "(f)"),
-            font.label = list(size = 10), label.x = 0.2, label.y = 1,
+            font.label = list(size = 10, face = "italic"), label.x = 0.2, label.y = 1,
             legend = 'top', common.legend = T, align = 'v')
   ggsave('tables_figures/final-tables_figures/Fig1.tiff', 
          width = 7, height = 7, 
@@ -301,14 +283,12 @@
   # Tag
   TAgexcr.p <- plot_wilcox(excr.Tag$massnorm.Tag.excr) +
   labs(x = '', 
-       y = 'Mass-specific \n Ag excretion (μg Ag/g/h)') +
-    theme(axis.text.x = element_blank())
+       y = 'Mass-specific \n Ag excretion (μg Ag/g/h)')
   TAgexcr.p
   # N:Ag
-  NAgexcr.p <- plot_wilcox(excr.Tag$massnorm.NAg.excr)+
+  NAgexcr.p <- plot_wilcox(excr.Tag$massnorm.NAg.excr) +
     labs(x = '', 
-         y = 'Mass-specific \n N:Ag excretion (molar)')+
-    theme(axis.text.x = element_blank())
+         y = 'Mass-specific \n N:Ag excretion (molar)')
   NAgexcr.p
   # P:Ag
   PAgexcr.p <- plot_wilcox(excr.Tag$massnorm.PAg.excr) +
@@ -319,14 +299,13 @@
   # combine plots ----
   ggarrange(TAgexcr.p, NAgexcr.p, PAgexcr.p, ncol = 1, nrow = 3, 
             labels = c("(a)", "(b)", "(c)"), 
-            font.label = list(size = 10), label.x = 0.2, label.y = 1,
+            font.label = list(size = 10, face = "italic"), label.x = 0.2, label.y = 1,
             legend = 'none', common.legend = T, align = 'v')
   ggsave('tables_figures/final-tables_figures/Fig2.tiff', 
          width = 3.33, height = 7, 
          units = 'in', dpi = 300)
   
   # ..Figure 3 ----
-  # Schiettekate et al model ----
   # N excretion 
   Nexcr_mS.p <- plot_mS(iter_yp$N.excretion.mod, 10^0.5, 10^3.3) +
     geom_point(aes(x = Mass, y = N.excretion.rate, color = Lake, shape = Year), 
@@ -334,8 +313,7 @@
                size = point.size, alpha = point.alpha + .2) +
     labs(x = "", y = "N excretion (μg N/ind/h)") +
     scale_shape_manual(labels = exp_red.labels,
-                       values = c(16, 8, 17), na.translate = F) +
-    theme(axis.text.x = element_blank())
+                       values = c(16, 8, 17), na.translate = F)
   Nexcr_mS.p
   
   # P excretion
@@ -343,52 +321,27 @@
     geom_point(aes(x = Mass, y = P.excretion.rate, color = Lake, shape = Year), 
                data = NPexcr,
                size = point.size, alpha = point.alpha + .2) +
-     labs(x = "", y = "P excretion (μg P/ind/h)") 
+     labs(x = "Dry mass (g)", y = "P excretion (μg P/ind/h)") 
   Pexcr_mS.p
   
-  # V&M model ----
-  # N excretion
-  Nexcr_mVM.p <- plot_mVM(iter_yp_VM$N.excretion.m, 
-                          iter_yp_VM$N.excretion.m.se, 10^0.5, 10^3.3) +
-    geom_point(aes(x = Mass, y = N.excretion.rate, color = Lake, shape = Year), 
-               data = NPexcr %>%  filter(Year != '2014'),
-               size = point.size, alpha = point.alpha + .2) +
-    scale_shape_manual(labels = exp_red.labels,
-                       values = c(16, 8, 17), na.translate = F) +
-    labs(x = "", 
-         y = "") +
-    theme(axis.text.x = element_blank())
-  Nexcr_mVM.p
-  
-  # P excretion
-  Pexcr_mVM.p <- plot_mVM(iter_yp_VM$P.excretion.m, 
-                          iter_yp_VM$P.excretion.m.se, 10^-2.5, 10^3) +
-    geom_point(aes(x = Mass, y = P.excretion.rate, color = Lake, shape = Year), 
-               data = NPexcr,
-               size = point.size, alpha = point.alpha + .2) +
-    labs(x = "", 
-         y = "") 
-  Pexcr_mVM.p
-  
   # combine plots ----
-  fig3.legend <- get_legend(Pexcr_mS.p)
-  fig3 <- ggarrange(Nexcr_mS.p, Nexcr_mVM.p, Pexcr_mS.p,  Pexcr_mVM.p, 
-            nrow = 2, ncol = 2,
-            legend = 'right', common.legend = F, align = 'hv', 
-            labels = c('(a)', '(b)', '(c)', '(d)'), 
-            label.x = 0.17, label.y = 1, font.label = list(size = 8), 
-            legend.grob = fig3.legend)
-
-  annotate_figure(fig3, 
-                  bottom = text_grob('Dry mass (g)', size = 10, y = 1))
+  ggarrange(
+    Nexcr_mS.p,
+    Pexcr_mS.p,
+    nrow = 2,
+    ncol = 1,
+    legend = 'right',
+    common.legend = T,
+    align = 'hv',
+    labels = c('(a)', '(b)'),
+    label.x = 0.2,
+    label.y = 1,
+    font.label = list(size = 10, face = "italic")
+  )
   
   ggsave('tables_figures/final-tables_figures/Fig3.tiff', 
-         width = 7, height =  5, 
+         width = 4, height =  5, 
          units = 'in', dpi = 600, compression = 'lzw', bg = 'white')
-
-  ggsave('tables_figures/final-tables_figures/Fig3.tiff', 
-         width = 7, height =  4, 
-         units = 'in', dpi = 600, compression = 'lzw')
 
   
   # Figure 4 ----
@@ -449,7 +402,7 @@
   plot_grid(lim_ref.p, Cing_ref.p, Nexcr_ref.p, Pexcr_ref.p, 
             ncol = 2, nrow = 2, align = 'hv', axis = "r", 
             labels = c("(a)", "(b)", "(c)", "(d)"),
-            label_size = 8)
+            label_size = 10, label_fontface = "italic")
   ggsave('tables_figures/final-tables_figures/Fig4.tiff', 
          width = 7, height = 4, 
          units = 'in', dpi = 600)
