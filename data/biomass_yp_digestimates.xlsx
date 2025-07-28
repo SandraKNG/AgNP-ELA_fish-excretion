@@ -1,0 +1,13 @@
+filename,variable,group_id,mean,sd,n,r,se,error_type,plot_type
+perch_biomass.jpg,Year,2012,2011.999999999999,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Biomass (kg/ha),2012,79.2592592592593,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Year,2014,2014.0000000000007,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Biomass (kg/ha),2014,74.07407407407409,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Year,2015,2015.015384615386,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Biomass (kg/ha),2015,74.81481481481484,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Year,2012_ref,2011.9846153846145,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Biomass (kg/ha),2012_ref,7.407407407407405,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Year,2014_ref,2014.0153846153853,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Biomass (kg/ha),2014_ref,15.55555555555555,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Year,2015_ref,2015.015384615386,NA,1,NA,NA,sd,scatterplot
+perch_biomass.jpg,Biomass (kg/ha),2015_ref,17.777777777777786,NA,1,NA,NA,sd,scatterplot

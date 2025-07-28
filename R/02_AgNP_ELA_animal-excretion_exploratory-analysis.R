@@ -259,3 +259,48 @@
   growth_params <- growth_params("Perca flavescens", otolith = FALSE)
   # find trophic level
   # trophic_level("Perca flavescens")
+  
+  # Temperature ----
+  lmtemp <- lm(Temperature ~ Year, data = NPexcr)
+  Anova(lmtemp)
+  summary(lmtemp)
+  
+  NPexcr_temp <- NPexcr %>%
+    filter(Year != '2014') %>% 
+    drop_na(massnorm.N.excr, Year, Temperature)
+  
+  lmN.temp <- lm(log(massnorm.N.excr) ~ Lake*Temperature, 
+            data = NPexcr %>% filter(Year != '2014'))
+  lmN.temp <- lmer(log(massnorm.N.excr) ~ Lake + (1|Temperature), 
+                   data = NPexcr_temp)
+  lmN.temp.fixed <- lm(log(massnorm.N.excr) ~ Lake,
+                       data = NPexcr_temp)
+  Anova(lmN.temp)
+  anova(lmN.temp, lmN.temp.fixed)
+  rand(lmN.temp)
+  emmeans(lmN.temp, pairwise ~ Lake|Temperature, type = 'response')
+  summary(lmN.temp)
+  
+  # P excretion
+  lmP.temp <- lm(log(massnorm.P.excr) ~ Year*Temperature, 
+            data = NPexcr)
+  lmP.temp <- lmer(log(massnorm.P.excr) ~ Lake + (1|Temperature), 
+                 data = NPexcr %>% drop_na(massnorm.P.excr,Year,Temperature))
+  lmP.temp.fixed <- lm(log(massnorm.P.excr) ~ Lake,
+                       data = NPexcr %>% drop_na(massnorm.P.excr, Year, Temperature))
+  Anova(lmP.temp)
+  anova(lmP.temp, lmP.temp.fixed)
+  rand(lmP.temp)
+  emmeans(lmP.temp, pairwise ~ Year|Temperature, type = 'response')
+  summary(lmP.temp)
+  
+   # N:P excretion
+  lmNP.temp <- lmer(log(massnorm.NP.excr) ~ Lake + (1|Temperature), 
+                   data = NPexcr %>% drop_na(massnorm.NP.excr,Year,Temperature))
+  lmNP.temp.fixed <- lm(log(massnorm.NP.excr) ~ Lake,
+                       data = NPexcr %>% drop_na(massnorm.NP.excr, Year, Temperature))
+  Anova(lmNP.temp)
+  anova(lmNP.temp, lmNP.temp.fixed)
+  rand(lmNP.temp)
+  summary(lmNP.temp)
+  

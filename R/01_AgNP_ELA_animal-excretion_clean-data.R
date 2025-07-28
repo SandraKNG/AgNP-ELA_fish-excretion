@@ -5,6 +5,7 @@
   # load libraries ----
   library(tidyverse)
   library(datawizard) # to do summary statistics
+  library(metaDigitise)
   
   # read silver nanoparticles (NP) dataset ----
   NPer <- read_csv('data/2020-04-21_AgNP-ELA-lakes_fish-excretion.csv')
@@ -16,6 +17,10 @@
   str(param)
   parammod <- as.list(param)
   
+  # retrieve data from figure - only do it once
+  # bms_yp_dig <- metaDigitise(dir = "data/dataToExtract/")
+  # write_csv(bms_yp_dig, 'data/biomass_yp_digestimates.xlsx')
+
   # clean, rename, and add variables to the dataset ----
   NPexcr <- NPer %>% 
     rename(Year = `Sampling year`,
@@ -41,10 +46,11 @@
   
   NPexcr_22 <- NPer_22 %>% 
     select(ID, Site.name, Species.code, N.excretion.rate, P.excretion.rate, 
-           C.excretion.rate, Dry.mass, Wet.mass) %>% 
+           C.excretion.rate, Dry.mass, Wet.mass, Incub.Temperature) %>% 
     rename(
       Lake = Site.name,
-      Mass = Dry.mass
+      Mass = Dry.mass,
+      Temperature = Incub.Temperature
     ) %>% 
     filter(
       !(Species.code %in% c('CTL1', 'CTL2'))
@@ -92,10 +98,29 @@
     describe_distribution() 
   NPexcr.ss
 
+  # calculating population-level excretion rates based on
+  # biomass data from Slongo et al. (2022) figure digitization
   NPexcr.ss1 <- NPexcr %>% group_by(Lake, Year) %>%
     select(c('Mass', 'massnorm.N.excr', 'massnorm.P.excr', 'massnorm.NP.excr',
              'massnorm.Tag.excr', 'massnorm.NAg.excr', 'massnorm.PAg.excr')) %>% 
-    describe_distribution() 
+    describe_distribution() %>% 
+    mutate(
+      Pop.N.excretion = case_when(
+        Variable == "massnorm.N.excr" & .group == "Lake=222 | Year=2012" ~ Mean * 7.9,
+        Variable == "massnorm.N.excr" & .group == "Lake=222 | Year=2014" ~ Mean * 7.4,
+        Variable == "massnorm.N.excr" & .group == "Lake=222 | Year=2015" ~ Mean * 7.5,
+        TRUE ~ NA_real_
+      ),
+      Pop.P.excretion = case_when(
+        Variable == "massnorm.P.excr" & .group == "Lake=222 | Year=2012" ~ Mean * 7.9,
+        Variable == "massnorm.P.excr" & .group == "Lake=222 | Year=2014" ~ Mean * 7.4,
+        Variable == "massnorm.P.excr" & .group == "Lake=222 | Year=2015" ~ Mean * 7.5,
+        Variable == "massnorm.P.excr" & .group == "Lake=239 | Year=2012" ~ Mean * 0.7,
+        Variable == "massnorm.P.excr" & .group == "Lake=239 | Year=2014" ~ Mean * 1.6,
+        Variable == "massnorm.P.excr" & .group == "Lake=239 | Year=2015" ~ Mean * 1.8,
+        TRUE ~ NA_real_
+      )
+    )
   NPexcr.ss1
   
   NPexcr.ss2 <- NPexcr %>% 

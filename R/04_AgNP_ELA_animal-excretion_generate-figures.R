@@ -218,8 +218,6 @@
       )
   }
   
-
-  
   # Figure 1 ----
   # N excretion
   Nexcr.p <- plot_emm(pwcN[["emmeans"]], 2.5) +
@@ -278,7 +276,7 @@
   ggsave('tables_figures/final-tables_figures/Fig1.tiff', 
          width = 7, height = 7, 
          units = 'in', dpi = 600, compression = 'lzw')
-  
+
   # Figure 2 ----
   # Tag
   TAgexcr.p <- plot_wilcox(excr.Tag$massnorm.Tag.excr) +
@@ -304,6 +302,7 @@
   ggsave('tables_figures/final-tables_figures/Fig2.tiff', 
          width = 3.33, height = 7, 
          units = 'in', dpi = 300)
+  
   
   # ..Figure 3 ----
   # N excretion 

@@ -8,6 +8,26 @@
   library(car)
   library(performance)
   library(ggpubr)
+  library(lmerTest) # lmer tests
+  
+  # LMER ----
+  lmN.temp <- lmer(log(massnorm.N.excr) ~ Lake + (1|Temperature), 
+                   data = NPexcr %>% filter(Year != '2014'))
+  Anova(lmN.temp)
+  rand(lmN.temp)
+  summary(lmN.temp)
+  
+  lmP.temp <- lmer(log(massnorm.P.excr) ~ Lake + (1|Temperature), 
+                   data = NPexcr)
+  Anova(lmP.temp)
+  rand(lmP.temp)
+  summary(lmP.temp)
+  
+  lmNP.temp <- lmer(log(massnorm.NP.excr) ~ Lake + (1|Temperature), 
+                    data = NPexcr %>% filter(Year != '2014'))
+  Anova(lmNP.temp)
+  rand(lmNP.temp)
+  summary(lmNP.temp)
   
   # LM & emmeans ----
   emm <- function(lm){
@@ -37,7 +57,6 @@
   
   
   # Mass
-  hist(NPexcr$Mass)
   lmMass <- lm(log(Mass) ~ Lake*Year, data = NPexcr)
   check_model(lmMass)
   anova(lmMass)
