@@ -275,32 +275,53 @@
                    data = NPexcr_temp)
   lmN.temp.fixed <- lm(log(massnorm.N.excr) ~ Lake,
                        data = NPexcr_temp)
+  lmN.temp <- lmer(log(massnorm.N.excr) ~ Year + (1|Temperature), 
+                   data = NPexcr_temp)
+  lmN.temp.fixed <- lm(log(massnorm.N.excr) ~ Year,
+                       data = NPexcr_temp)
   Anova(lmN.temp)
   anova(lmN.temp, lmN.temp.fixed)
   rand(lmN.temp)
   emmeans(lmN.temp, pairwise ~ Lake|Temperature, type = 'response')
   summary(lmN.temp)
   
+  # Ratio random vs relative variance for models with lake: 
+  # 2.4913/(2.4913 + 0.6691) = 0.79 -> 79% variance explained by random effect
+  
   # P excretion
   lmP.temp <- lm(log(massnorm.P.excr) ~ Year*Temperature, 
             data = NPexcr)
   lmP.temp <- lmer(log(massnorm.P.excr) ~ Lake + (1|Temperature), 
                  data = NPexcr %>% drop_na(massnorm.P.excr,Year,Temperature))
+  lmP.temp <- lmer(log(massnorm.P.excr) ~ Year + (1|Temperature), 
+                   data = NPexcr %>% drop_na(massnorm.P.excr,Year,Temperature))
   lmP.temp.fixed <- lm(log(massnorm.P.excr) ~ Lake,
+                       data = NPexcr %>% drop_na(massnorm.P.excr, Year, Temperature))
+  lmP.temp.fixed <- lm(log(massnorm.P.excr) ~ Year,
                        data = NPexcr %>% drop_na(massnorm.P.excr, Year, Temperature))
   Anova(lmP.temp)
   anova(lmP.temp, lmP.temp.fixed)
   rand(lmP.temp)
   emmeans(lmP.temp, pairwise ~ Year|Temperature, type = 'response')
   summary(lmP.temp)
+  # Ratio random vs relative variance for models with lake: 
+  # 0.3151/(0.3151 + 0.3626) = 0.46 -> 46% variance explained by random effect
+  # Ratio random vs relative variance for models with year: 
+  # 0.4450/(0.4450 + 0.3443) = 0.56 -> 56% variance explained by random effect
   
    # N:P excretion
   lmNP.temp <- lmer(log(massnorm.NP.excr) ~ Lake + (1|Temperature), 
                    data = NPexcr %>% drop_na(massnorm.NP.excr,Year,Temperature))
   lmNP.temp.fixed <- lm(log(massnorm.NP.excr) ~ Lake,
                        data = NPexcr %>% drop_na(massnorm.NP.excr, Year, Temperature))
+  lmNP.temp <- lmer(log(massnorm.NP.excr) ~ Year + (1|Temperature), 
+                    data = NPexcr %>% drop_na(massnorm.NP.excr,Year,Temperature))
+  lmNP.temp.fixed <- lm(log(massnorm.NP.excr) ~ Year,
+                        data = NPexcr %>% drop_na(massnorm.NP.excr, Year, Temperature))
   Anova(lmNP.temp)
   anova(lmNP.temp, lmNP.temp.fixed)
   rand(lmNP.temp)
   summary(lmNP.temp)
+  # Ratio random vs relative variance for models with lake: 
+  # 1.055/(1.055 + 1.186) = 0.47 -> 47% variance explained by random effect
   

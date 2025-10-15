@@ -132,7 +132,7 @@
     upperCI_exc = rep(NA, output_size)
   )
   
-  # Data Processing and Analysis ----
+  # Data processing and analysis ----
   i <- 1
   for (y in unique(NPexcr$Year)) {
     for (col in columns_to_analyze) {
@@ -147,8 +147,6 @@
         filter(Year == y, Lake == 222, !is.na(.data[[col]])) %>% 
         pull(.data[[col]])
       
-      # cat("Control: ", y, col, paste(unlist(control), collapse = ", "), "\n")
-      # cat("Treatment ", y, col, paste(unlist(treatment), collapse = ", "), "\n")
       
       # Skip iteration if data is insufficient
       if (length(control) < 2 | length(treatment) < 2) next
@@ -159,9 +157,6 @@
       
       transc <- log(control + 1)
       transt <- log(treatment + 1)
-      
-      # cat("Control: ", y, col, paste(unlist(transc), collapse = ", "), "\n")
-      # cat("Treatment ", y, col, paste(unlist(transc), collapse = ", "), "\n")
       
       # Combined Variance Calculation
       combined_variance <- var(c(transc - mean(transc), transt - mean(transt)))
